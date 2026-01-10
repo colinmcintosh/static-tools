@@ -1,69 +1,25 @@
 # Verify source provenance using gittuf
-# This workflow verifies that source code changes follow the gittuf policy
-# and generates source provenance attestations.
+# Based on https://github.com/gittuf/gittuf/blob/main/.github/workflows/gittuf-verify.yml
 
-name: Verify Source Provenance
+name: gittuf Verification
 
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
-permissions:
-  contents: read
-
-env:
-  GITTUF_VERSION: "0.12.0"
+permissions: read-all
 
 jobs:
-  verify-source:
-    name: Verify gittuf source provenance
-    runs-on: ubuntu-24.04
+  gittuf-verify:
+    if: github.repository == 'colinmcintosh/static-tools'
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0  # Need full history for gittuf verification
-          # Fetch gittuf refs
-          ref: ${{ github.ref }}
-
-      - name: Fetch gittuf refs
-        run: |
-          git fetch origin 'refs/gittuf/*:refs/gittuf/*' || echo "No gittuf refs found (expected for new repos)"
-
       - name: Install gittuf
-        run: |
-          curl -fsSL "https://github.com/gittuf/gittuf/releases/download/v${GITTUF_VERSION}/gittuf_${GITTUF_VERSION}_linux_amd64" -o /tmp/gittuf
-          curl -fsSL "https://github.com/gittuf/gittuf/releases/download/v${GITTUF_VERSION}/gittuf_${GITTUF_VERSION}_linux_amd64.sig" -o /tmp/gittuf.sig
-          curl -fsSL "https://github.com/gittuf/gittuf/releases/download/v${GITTUF_VERSION}/gittuf_${GITTUF_VERSION}_linux_amd64.pem" -o /tmp/gittuf.pem
-          chmod +x /tmp/gittuf
-          sudo mv /tmp/gittuf /usr/local/bin/gittuf
-          gittuf version
+        uses: gittuf/gittuf-installer@3408aeb2a325ce88ff482b3b964322cd9d6bea22 # v0.10.0
 
-      - name: Check if gittuf is initialized
-        id: gittuf-check
+      - name: Checkout and verify repository
         run: |
-          if git show-ref --quiet refs/gittuf/policy 2>/dev/null; then
-            echo "initialized=true" >> "$GITHUB_OUTPUT"
-            echo "gittuf policy found"
-          else
-            echo "initialized=false" >> "$GITHUB_OUTPUT"
-            echo "gittuf not initialized - skipping verification"
-          fi
-
-      - name: Verify source provenance
-        if: steps.gittuf-check.outputs.initialized == 'true'
-        run: |
-          echo "Verifying gittuf policy for main branch..."
-          gittuf verify-ref --verbose main || {
-            echo "::warning::gittuf verification failed - this may be expected during initial setup"
-            exit 0
-          }
-          echo "✓ Source provenance verified!"
-
-      - name: Display RSL status
-        if: steps.gittuf-check.outputs.initialized == 'true'
-        run: |
-          echo "=== Reference State Log (RSL) ==="
-          gittuf rsl log --limit 10 || true
+          sleep 10s
+          gittuf clone https://github.com/${{ github.repository }}
+          cd static-tools
+          gittuf verify-ref main --verbose
