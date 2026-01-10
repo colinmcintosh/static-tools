@@ -24,7 +24,7 @@ BUILDX ?= $(DOCKER) buildx
 OUT_DIR := $(CURDIR)/dist
 
 # All tools
-TOOLS := mtr
+TOOLS := mtr drill
 
 # Default target
 .PHONY: all
