@@ -64,6 +64,26 @@ verify:
 	@echo "==> Verifying provenance"
 	./scripts/verify.sh
 
+# Lint Dockerfiles and scripts
+.PHONY: lint
+lint:
+	@echo "==> Linting Dockerfiles"
+	@HADOLINT=$$(command -v hadolint 2>/dev/null || echo ""); \
+	if [ -z "$$HADOLINT" ] || [ ! -x "$$HADOLINT" ]; then \
+		echo "Installing hadolint..."; \
+		if [ "$(HOST_ARCH)" = "amd64" ]; then \
+			wget -qO /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64; \
+		else \
+			wget -qO /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-arm64; \
+		fi; \
+		chmod +x /tmp/hadolint; \
+		HADOLINT=/tmp/hadolint; \
+	fi; \
+	for tool in $(TOOLS); do \
+		$$HADOLINT --config .hadolint.yaml tools/$$tool/Dockerfile || exit 1; \
+	done
+	@echo "✓ Lint passed"
+
 # Clean build artifacts
 .PHONY: clean
 clean:
@@ -88,6 +108,7 @@ help:
 	@echo "  make test           Run tests for all tools"
 	@echo "  make test-mtr       Run tests for specific tool"
 	@echo "  make verify         Verify provenance of release artifacts"
+	@echo "  make lint           Lint Dockerfiles with hadolint"
 	@echo "  make clean          Remove build artifacts"
 	@echo "  make list           List available tools"
 	@echo "  make help           Show this help message"
