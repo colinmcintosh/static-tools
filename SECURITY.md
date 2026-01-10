@@ -26,6 +26,24 @@ Every release includes cryptographically signed provenance attestations that:
 - Are signed using Sigstore's keyless signing (Fulcio)
 - Can be verified using [slsa-verifier](https://github.com/slsa-framework/slsa-verifier)
 
+### Source Provenance (gittuf)
+
+This project uses [gittuf](https://gittuf.dev/) for source provenance, which provides:
+
+- **Reference State Log (RSL)**: Tamper-evident log of all reference (branch/tag) changes
+- **Policy-based access control**: Cryptographic proof that changes were made by authorized maintainers
+- **TUF-based root of trust**: Secure key management for signing policies
+
+Verify source provenance:
+
+```bash
+# Fetch gittuf refs
+git fetch origin 'refs/gittuf/*:refs/gittuf/*'
+
+# Verify the main branch
+gittuf verify-ref main
+```
+
 ### Verification
 
 Before using any binary from this project, verify its provenance:

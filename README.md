@@ -161,6 +161,36 @@ This project achieves [SLSA Level 3](https://slsa.dev/spec/v1.0/levels) through:
 | **Isolated builds** | GitHub Actions + container builds |
 | **Unforgeable provenance** | Reusable workflows with isolated signing |
 
+### Source Provenance with gittuf
+
+This project uses [gittuf](https://gittuf.dev/) to provide cryptographic source provenance, proving that source code changes were made by authorized maintainers following defined policies.
+
+#### Setting Up gittuf (Maintainers)
+
+```bash
+# Install gittuf
+make gittuf-install
+
+# Initialize gittuf (creates keys and policies)
+make gittuf-init
+
+# After making commits, record in the Reference State Log
+make gittuf-record
+
+# Push gittuf refs to remote
+git push origin refs/gittuf/*
+```
+
+#### Verifying Source Provenance
+
+```bash
+# Verify that the main branch follows gittuf policy
+make gittuf-verify
+
+# Or directly with gittuf
+gittuf verify-ref main
+```
+
 ### Version Pinning
 
 All dependencies are pinned for reproducibility:
