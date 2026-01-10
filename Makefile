@@ -58,12 +58,6 @@ test-%:
 	@echo "==> Testing $*"
 	$(MAKE) -C tools/$* test ARCH=$(HOST_ARCH)
 
-# Verify provenance of release artifacts
-.PHONY: verify
-verify:
-	@echo "==> Verifying provenance"
-	./scripts/verify.sh
-
 # Lint Dockerfiles and scripts
 .PHONY: lint
 lint:
@@ -90,41 +84,14 @@ gittuf-install:
 	@echo "==> Installing gittuf"
 	./scripts/install-gittuf.sh
 
-.PHONY: gittuf-init
-gittuf-init:
-	@echo "==> Initializing gittuf"
-	./scripts/gittuf-init.sh
-
 .PHONY: gittuf-verify
 gittuf-verify:
 	@echo "==> Verifying source provenance"
 	@if git show-ref --quiet refs/gittuf/policy 2>/dev/null; then \
 		gittuf verify-ref --verbose main; \
 	else \
-		echo "gittuf not initialized - run 'make gittuf-init' first"; \
+		echo "gittuf not initialized - run 'gittuf setup' first"; \
 	fi
-
-.PHONY: gittuf-record
-gittuf-record:
-	@echo "==> Recording RSL entry for main"
-	gittuf rsl record main --local-only
-
-# Push with gittuf RSL recording
-.PHONY: push
-push:
-	@echo "==> Syncing RSL from remote"
-	-gittuf rsl remote pull origin 2>/dev/null || true
-	@echo "==> Recording RSL entry"
-	gittuf rsl record main --remote-name origin
-	@echo "==> Pushing to origin"
-	git push origin main
-	git push origin refs/gittuf/reference-state-log
-
-# Push gittuf refs to remote
-.PHONY: gittuf-push
-gittuf-push:
-	@echo "==> Pushing gittuf refs to origin"
-	git push origin refs/gittuf/policy refs/gittuf/reference-state-log
 
 # Clean build artifacts
 .PHONY: clean
@@ -149,12 +116,9 @@ help:
 	@echo "  make build-all      Build all tools for all architectures (amd64, arm64)"
 	@echo "  make test           Run tests for all tools"
 	@echo "  make test-mtr       Run tests for specific tool"
-	@echo "  make verify         Verify provenance of release artifacts"
 	@echo "  make lint           Lint Dockerfiles with hadolint"
-	@echo "  make gittuf-init    Initialize gittuf source provenance"
+	@echo "  make gittuf-install Install gittuf locally"
 	@echo "  make gittuf-verify  Verify source provenance with gittuf"
-	@echo "  make gittuf-push    Push gittuf refs to remote"
-	@echo "  make push           Push with gittuf RSL recording"
 	@echo "  make clean          Remove build artifacts"
 	@echo "  make list           List available tools"
 	@echo "  make help           Show this help message"
