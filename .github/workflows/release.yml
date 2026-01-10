@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: [mtr]
+        tool: [mtr, drill, dig]
         include:
           - arch: amd64
             runner: ubuntu-24.04
@@ -82,6 +82,10 @@ jobs:
     outputs:
       hashes-mtr-amd64: ${{ steps.hash.outputs.hashes-mtr-amd64 }}
       hashes-mtr-arm64: ${{ steps.hash.outputs.hashes-mtr-arm64 }}
+      hashes-drill-amd64: ${{ steps.hash.outputs.hashes-drill-amd64 }}
+      hashes-drill-arm64: ${{ steps.hash.outputs.hashes-drill-arm64 }}
+      hashes-dig-amd64: ${{ steps.hash.outputs.hashes-dig-amd64 }}
+      hashes-dig-arm64: ${{ steps.hash.outputs.hashes-dig-arm64 }}
 
     steps:
       - name: Checkout repository
@@ -104,25 +108,32 @@ jobs:
         run: |
           cd dist/${{ matrix.tool }}/${{ matrix.arch }}
           # Generate SHA256 hashes in base64 format for SLSA provenance
-          HASHES=$(sha256sum mtr mtr-packet | base64 -w0)
+          if [ "${{ matrix.tool }}" = "mtr" ]; then
+            HASHES=$(sha256sum mtr mtr-packet | base64 -w0)
+          else
+            HASHES=$(sha256sum ${{ matrix.tool }} | base64 -w0)
+          fi
           echo "hashes-${{ matrix.tool }}-${{ matrix.arch }}=${HASHES}" >> "$GITHUB_OUTPUT"
 
       - name: Rename artifacts with architecture suffix
         run: |
           cd dist/${{ matrix.tool }}/${{ matrix.arch }}
-          for file in mtr mtr-packet; do
-            mv "$file" "$file-${{ matrix.arch }}"
-          done
-          # Update checksums file
-          sha256sum mtr-${{ matrix.arch }} mtr-packet-${{ matrix.arch }} > SHA256SUMS-${{ matrix.arch }}.txt
+          if [ "${{ matrix.tool }}" = "mtr" ]; then
+            for file in mtr mtr-packet; do
+              mv "$file" "$file-${{ matrix.arch }}"
+            done
+            sha256sum mtr-${{ matrix.arch }} mtr-packet-${{ matrix.arch }} > SHA256SUMS-${{ matrix.arch }}.txt
+          else
+            mv ${{ matrix.tool }} ${{ matrix.tool }}-${{ matrix.arch }}
+            sha256sum ${{ matrix.tool }}-${{ matrix.arch }} > SHA256SUMS-${{ matrix.arch }}.txt
+          fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ matrix.tool }}-${{ matrix.arch }}
           path: |
-            dist/${{ matrix.tool }}/${{ matrix.arch }}/mtr-${{ matrix.arch }}
-            dist/${{ matrix.tool }}/${{ matrix.arch }}/mtr-packet-${{ matrix.arch }}
+            dist/${{ matrix.tool }}/${{ matrix.arch }}/*-${{ matrix.arch }}
             dist/${{ matrix.tool }}/${{ matrix.arch }}/SHA256SUMS-${{ matrix.arch }}.txt
           if-no-files-found: error
           retention-days: 5
@@ -144,6 +155,10 @@ jobs:
           # Decode and combine all hashes
           echo "${{ needs.build.outputs.hashes-mtr-amd64 }}" | base64 -d > hashes.txt
           echo "${{ needs.build.outputs.hashes-mtr-arm64 }}" | base64 -d >> hashes.txt
+          echo "${{ needs.build.outputs.hashes-drill-amd64 }}" | base64 -d >> hashes.txt
+          echo "${{ needs.build.outputs.hashes-drill-arm64 }}" | base64 -d >> hashes.txt
+          echo "${{ needs.build.outputs.hashes-dig-amd64 }}" | base64 -d >> hashes.txt
+          echo "${{ needs.build.outputs.hashes-dig-arm64 }}" | base64 -d >> hashes.txt
           # Re-encode combined hashes
           COMBINED=$(cat hashes.txt | base64 -w0)
           echo "hashes=${COMBINED}" >> "$GITHUB_OUTPUT"
@@ -184,7 +199,7 @@ jobs:
         run: |
           mkdir -p release
           # Copy all binaries to release directory
-          find artifacts -type f \( -name "mtr-*" -o -name "SHA256SUMS-*.txt" \) -exec cp {} release/ \;
+          find artifacts -type f \( -name "mtr-*" -o -name "drill-*" -o -name "dig-*" -o -name "SHA256SUMS-*.txt" \) -exec cp {} release/ \;
           # Generate combined checksums
           cd release
           cat SHA256SUMS-*.txt > SHA256SUMS.txt
@@ -209,6 +224,8 @@ jobs:
           generate_release_notes: true
           files: |
             release/mtr-*
+            release/drill-*
+            release/dig-*
             release/SHA256SUMS.txt
           body: |
             ## Static Binaries
@@ -216,7 +233,9 @@ jobs:
             This release includes statically compiled binaries with SLSA Level 3 provenance.
 
             ### Included Tools
-            - **mtr** - Network diagnostic tool combining ping and traceroute
+            - **mtr** (v0.95) - Network diagnostic tool combining ping and traceroute
+            - **drill** (v1.8.4) - DNS lookup utility from ldns - lightweight dig alternative
+            - **dig** (v9.16.50) - DNS lookup utility from BIND - full-featured DNS diagnostics
 
             ### Architectures
             - `amd64` (x86_64)
@@ -227,7 +246,18 @@ jobs:
             Verify the SLSA provenance using [slsa-verifier](https://github.com/slsa-framework/slsa-verifier):
 
             ```bash
+            # Verify mtr
             slsa-verifier verify-artifact mtr-amd64 \
+              --provenance-path multiple.intoto.jsonl \
+              --source-uri github.com/${{ github.repository }}
+
+            # Verify dig
+            slsa-verifier verify-artifact dig-amd64 \
+              --provenance-path multiple.intoto.jsonl \
+              --source-uri github.com/${{ github.repository }}
+
+            # Verify drill
+            slsa-verifier verify-artifact drill-amd64 \
               --provenance-path multiple.intoto.jsonl \
               --source-uri github.com/${{ github.repository }}
             ```

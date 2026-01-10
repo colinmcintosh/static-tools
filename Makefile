@@ -24,7 +24,28 @@ BUILDX ?= $(DOCKER) buildx
 OUT_DIR := $(CURDIR)/dist
 
 # All tools
-TOOLS := mtr
+TOOLS := mtr drill dig
+
+# Versioning Format: YYYY.MM.MINOR
+# YYYY = year, MM = zero-padded month, MINOR = release number within month
+YEAR := $(shell date +%Y)
+MONTH := $(shell date +%m)
+# Auto-increment MINOR based on last tag for this year.month
+LAST_MINOR := $(shell git tag -l "v$(YEAR).$(MONTH).*" 2>/dev/null | sed 's/.*\.$(MONTH)\.\([0-9]*\)-.*/\1/' | sort -n | tail -1)
+MINOR ?= $(if $(LAST_MINOR),$(shell echo $$(($(LAST_MINOR) + 1))),0)
+VERSION ?= v$(YEAR).$(MONTH).$(MINOR)
+
+# Version
+.PHONY: version
+version: ## Print the current version
+	@echo "$(VERSION)"
+
+.PHONY: tag-release
+tag-release: ## Tag the current commit with the release version
+	@echo "Tagging release $(VERSION)..."
+	git tag -a "$(VERSION)" -m "Release $(VERSION)"
+	@echo "Created tag $(VERSION)"
+	@echo "Run 'git push origin $(VERSION)' to push the tag and trigger release"
 
 # Default target
 .PHONY: all
