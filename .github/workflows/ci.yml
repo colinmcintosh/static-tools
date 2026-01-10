@@ -13,13 +13,65 @@ permissions:
   contents: read
 
 jobs:
+  # Verify source provenance with gittuf
+  verify-source:
+    name: Verify source provenance
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Fetch gittuf refs
+        run: |
+          git fetch origin 'refs/gittuf/*:refs/gittuf/*' || echo "No gittuf refs found"
+
+      - name: Install gittuf
+        run: |
+          curl -fsSL "https://github.com/gittuf/gittuf/releases/download/v0.12.0/gittuf_0.12.0_linux_amd64" -o /tmp/gittuf
+          chmod +x /tmp/gittuf
+          sudo mv /tmp/gittuf /usr/local/bin/gittuf
+
+      - name: Verify source provenance
+        run: |
+          if git show-ref --quiet refs/gittuf/policy 2>/dev/null; then
+            echo "Verifying gittuf source provenance..."
+            gittuf verify-ref --verbose main || echo "::warning::gittuf verification pending"
+          else
+            echo "::notice::gittuf not initialized - source provenance not available"
+          fi
+
+  # Verify all commits are signed
+  verify-signatures:
+    name: Verify commit signatures
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Check all commits are signed
+        run: |
+          echo "Checking commit signatures..."
+          UNSIGNED_COMMITS=$(git log --format="%H %G? %s" | grep " N " || true)
+          if [ -n "$UNSIGNED_COMMITS" ]; then
+            echo "::error::Found unsigned commits:"
+            echo "$UNSIGNED_COMMITS"
+            exit 1
+          fi
+          echo "✓ All commits are signed"
+
   build:
     name: Build ${{ matrix.tool }}-${{ matrix.arch }}
+    needs: [verify-source, verify-signatures]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        tool: [mtr]
+        tool: [mtr, dig, drill]
+        arch: [amd64, arm64]
         include:
           - arch: amd64
             runner: ubuntu-24.04

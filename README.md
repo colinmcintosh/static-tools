@@ -11,6 +11,8 @@ This repository provides statically linked binaries that can run on any Linux sy
 | Tool | Version | Description |
 |------|---------|-------------|
 | mtr | 0.95 | Network diagnostic combining ping and traceroute |
+| drill | 1.8.4 | DNS lookup utility (ldns) - lightweight dig alternative |
+| dig | 9.16.50 | DNS lookup utility from BIND - full-featured DNS diagnostics |
 
 ## Supported Architectures
 
@@ -29,9 +31,17 @@ For example:
 # Download mtr for your architecture
 curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/mtr-amd64
 chmod +x mtr-amd64
-
-# Optionally rename
 mv mtr-amd64 mtr
+
+# Download dig for DNS lookups
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/dig-amd64
+chmod +x dig-amd64
+mv dig-amd64 dig
+
+# Or download drill (lightweight alternative)
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/drill-amd64
+chmod +x drill-amd64
+mv drill-amd64 drill
 ```
 
 ### Verify Provenance (Recommended)
@@ -45,8 +55,13 @@ go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
 # Download provenance
 curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/multiple.intoto.jsonl
 
-# Verify
+# Verify mtr
 slsa-verifier verify-artifact mtr-amd64 \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/colinmcintosh/static-tools
+
+# Verify dig
+slsa-verifier verify-artifact dig-amd64 \
   --provenance-path multiple.intoto.jsonl \
   --source-uri github.com/colinmcintosh/static-tools
 ```
@@ -55,6 +70,7 @@ Or use the included verification script:
 
 ```bash
 ./scripts/verify.sh mtr-amd64 multiple.intoto.jsonl
+./scripts/verify.sh dig-amd64 multiple.intoto.jsonl
 ```
 
 ## Building Locally
@@ -67,8 +83,10 @@ Or use the included verification script:
 ### Build for Your Architecture
 
 ```bash
-# Build mtr for your current architecture
+# Build a specific tool for your current architecture
 make build-mtr
+make build-dig
+make build-drill
 
 # Build all tools
 make build
@@ -77,8 +95,10 @@ make build
 ### Build for All Architectures
 
 ```bash
-# Build mtr for amd64 and arm64
+# Build a specific tool for amd64 and arm64
 make build-all-mtr
+make build-all-dig
+make build-all-drill
 
 # Build all tools for all architectures
 make build-all
@@ -88,6 +108,11 @@ make build-all
 
 ```bash
 make test-mtr
+make test-dig
+make test-drill
+
+# Test all tools
+make test
 ```
 
 ### Other Commands
@@ -104,10 +129,18 @@ make clean    # Remove build artifacts
 static-tools/
 ├── Makefile                    # Root build entry point
 ├── tools/
-│   └── mtr/
-│       ├── Dockerfile          # Static build configuration
-│       ├── Makefile            # Tool-specific targets
-│       └── versions.mk         # Pinned versions and checksums
+│   ├── mtr/
+│   │   ├── Dockerfile          # Static build configuration
+│   │   ├── Makefile            # Tool-specific targets
+│   │   └── versions.mk         # Pinned versions and checksums
+│   ├── drill/
+│   │   ├── Dockerfile          # ldns-based DNS lookup tool
+│   │   ├── Makefile
+│   │   └── versions.mk
+│   └── dig/
+│       ├── Dockerfile          # BIND-based DNS lookup tool
+│       ├── Makefile
+│       └── versions.mk
 ├── .github/
 │   ├── workflows/
 │   │   ├── ci.yml              # CI validation
@@ -213,3 +246,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 Individual tools retain their original licenses:
 - mtr: GPL-2.0
+- drill (ldns): BSD-3-Clause
+- dig (BIND): MPL-2.0
