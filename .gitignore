@@ -1,3 +1,6 @@
 dist/
 *.tar.gz
 *.zip
+
+# gittuf keys (NEVER commit these)
+.gittuf-keys/
