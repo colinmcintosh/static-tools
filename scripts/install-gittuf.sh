@@ -77,6 +77,7 @@ install_gittuf() {
     cd "$tmp_dir"
     
     local binary="gittuf_${version}_${os}_${arch}"
+    local remote_helper="git-remote-gittuf_${version}_${os}_${arch}"
     local base_url="https://github.com/gittuf/gittuf/releases/download/v${version}"
     
     # Download binary and signature files
@@ -85,21 +86,37 @@ install_gittuf() {
     curl -fsSL "${base_url}/${binary}.sig" -o "${binary}.sig"
     curl -fsSL "${base_url}/${binary}.pem" -o "${binary}.pem"
     
+    # Download git-remote-gittuf helper
+    log_info "Downloading git-remote-gittuf helper..."
+    curl -fsSL "${base_url}/${remote_helper}" -o "${remote_helper}"
+    curl -fsSL "${base_url}/${remote_helper}.sig" -o "${remote_helper}.sig"
+    curl -fsSL "${base_url}/${remote_helper}.pem" -o "${remote_helper}.pem"
+    
     # Verify signature with cosign if available
     if check_cosign; then
-        log_info "Verifying signature with cosign..."
+        log_info "Verifying gittuf signature with cosign..."
         cosign verify-blob \
             --certificate "${binary}.pem" \
             --signature "${binary}.sig" \
             --certificate-identity "https://github.com/gittuf/gittuf/.github/workflows/release.yml@refs/tags/v${version}" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "${binary}"
-        log_info "✓ Signature verified!"
+        log_info "✓ gittuf signature verified!"
+        
+        log_info "Verifying git-remote-gittuf signature with cosign..."
+        cosign verify-blob \
+            --certificate "${remote_helper}.pem" \
+            --signature "${remote_helper}.sig" \
+            --certificate-identity "https://github.com/gittuf/gittuf/.github/workflows/release.yml@refs/tags/v${version}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${remote_helper}"
+        log_info "✓ git-remote-gittuf signature verified!"
     fi
     
     # Install
     mkdir -p "${install_dir}"
     install "${binary}" "${install_dir}/gittuf"
+    install "${remote_helper}" "${install_dir}/git-remote-gittuf"
     
     # Cleanup
     cd -
@@ -112,6 +129,7 @@ install_gittuf() {
     fi
     
     log_info "✓ gittuf installed to ${install_dir}/gittuf"
+    log_info "✓ git-remote-gittuf installed to ${install_dir}/git-remote-gittuf"
     "${install_dir}/gittuf" version
 }
 
