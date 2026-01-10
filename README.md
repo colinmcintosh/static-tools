@@ -1,0 +1,185 @@
+# static-tools
+
+Statically compiled binaries for common Linux tools with verified SLSA Level 3 supply chain provenance.
+
+## Overview
+
+This repository provides statically linked binaries that can run on any Linux system without dependencies. All builds are performed in containers with cryptographically signed provenance attestations, enabling verification of the complete build chain.
+
+## Available Tools
+
+| Tool | Version | Description |
+|------|---------|-------------|
+| mtr | 0.95 | Network diagnostic combining ping and traceroute |
+
+## Supported Architectures
+
+- `amd64` (x86_64)
+- `arm64` (aarch64)
+
+## Usage
+
+### Download from Releases
+
+Download the latest binaries from the [Releases](https://github.com/colinmcintosh/static-tools/releases) page.
+
+For example:
+
+```bash
+# Download mtr for your architecture
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/mtr-amd64
+chmod +x mtr-amd64
+
+# Optionally rename
+mv mtr-amd64 mtr
+```
+
+### Verify Provenance (Recommended)
+
+Verify the SLSA provenance before using binaries:
+
+```bash
+# Install slsa-verifier
+go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
+
+# Download provenance
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/multiple.intoto.jsonl
+
+# Verify
+slsa-verifier verify-artifact mtr-amd64 \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/colinmcintosh/static-tools
+```
+
+Or use the included verification script:
+
+```bash
+./scripts/verify.sh mtr-amd64 multiple.intoto.jsonl
+```
+
+## Building Locally
+
+### Prerequisites
+
+- Docker with BuildKit support
+- GNU Make
+
+### Build for Your Architecture
+
+```bash
+# Build mtr for your current architecture
+make build-mtr
+
+# Build all tools
+make build
+```
+
+### Build for All Architectures
+
+```bash
+# Build mtr for amd64 and arm64
+make build-all-mtr
+
+# Build all tools for all architectures
+make build-all
+```
+
+### Test
+
+```bash
+make test-mtr
+```
+
+### Other Commands
+
+```bash
+make help     # Show all available commands
+make list     # List available tools
+make clean    # Remove build artifacts
+```
+
+## Project Structure
+
+```
+static-tools/
+├── Makefile                    # Root build entry point
+├── tools/
+│   └── mtr/
+│       ├── Dockerfile          # Static build configuration
+│       ├── Makefile            # Tool-specific targets
+│       └── versions.mk         # Pinned versions and checksums
+├── .github/
+│   ├── workflows/
+│   │   ├── ci.yml              # CI validation
+│   │   └── release.yml         # Release with SLSA provenance
+│   └── configs/
+│       ├── mtr-amd64.toml      # SLSA build config (amd64)
+│       └── mtr-arm64.toml      # SLSA build config (arm64)
+└── scripts/
+    └── verify.sh               # Provenance verification helper
+```
+
+## Adding New Tools
+
+To add a new tool (e.g., `dig`):
+
+1. Create the tool directory structure:
+   ```bash
+   mkdir -p tools/dig
+   ```
+
+2. Create `tools/dig/versions.mk` with pinned versions:
+   ```makefile
+   DIG_VERSION := 9.18.24
+   DIG_SOURCE_SHA256 := <computed-hash>
+   ```
+
+3. Create `tools/dig/Dockerfile` following the mtr pattern:
+   - Use Alpine with musl for static linking
+   - Pin base image by digest
+   - Verify source with `ADD --checksum`
+   - Compile with `-static` flags
+
+4. Create `tools/dig/Makefile` with build targets
+
+5. Add `dig` to the `TOOLS` list in the root `Makefile`
+
+6. Add SLSA configs in `.github/configs/`
+
+7. Update the CI/release workflows matrix
+
+## Supply Chain Security
+
+### SLSA Level 3 Compliance
+
+This project achieves [SLSA Level 3](https://slsa.dev/spec/v1.0/levels) through:
+
+| Requirement | Implementation |
+|-------------|----------------|
+| **Provenance generation** | slsa-github-generator |
+| **Signed provenance** | Sigstore (keyless signing via Fulcio) |
+| **Isolated builds** | GitHub Actions + container builds |
+| **Unforgeable provenance** | Reusable workflows with isolated signing |
+
+### Version Pinning
+
+All dependencies are pinned for reproducibility:
+
+- **Base images**: Alpine pinned by SHA256 digest
+- **Source code**: Verified with SHA256 checksums
+- **GitHub Actions**: Pinned by commit SHA
+- **Build dependencies**: Pinned to specific Alpine package versions
+
+### Verification
+
+Every release includes:
+
+- `SHA256SUMS.txt` - Checksums for all binaries
+- `multiple.intoto.jsonl` - SLSA provenance attestation
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+Individual tools retain their original licenses:
+- mtr: GPL-2.0

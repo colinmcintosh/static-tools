@@ -1,0 +1,17 @@
+# SLSA build configuration for mtr (amd64)
+# Used by slsa-github-generator container-based builder
+
+version = 1
+
+[builder]
+# Build command executed inside the container
+# The Makefile handles all build logic
+command = ["make", "-C", "tools/mtr", "build", "ARCH=amd64", "OUT_DIR=/github/workspace/dist"]
+
+[artifact_paths]
+# Artifacts to collect after build
+paths = [
+    "dist/mtr/amd64/mtr",
+    "dist/mtr/amd64/mtr-packet",
+    "dist/mtr/amd64/SHA256SUMS"
+]

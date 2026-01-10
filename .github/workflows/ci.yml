@@ -1,0 +1,63 @@
+# CI workflow for static-tools
+# Runs on every push and pull request to validate builds
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.tool }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [mtr]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Build ${{ matrix.tool }} for ${{ matrix.arch }}
+        run: |
+          make build-${{ matrix.tool }} ARCH=${{ matrix.arch }}
+
+      - name: Test ${{ matrix.tool }}
+        run: |
+          make test-${{ matrix.tool }} ARCH=${{ matrix.arch }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.tool }}-${{ matrix.arch }}-${{ github.sha }}
+          path: dist/${{ matrix.tool }}/${{ matrix.arch }}/
+          retention-days: 7
+
+  # Validate Dockerfile best practices
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Lint Dockerfiles with Hadolint
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
+        with:
+          dockerfile: tools/mtr/Dockerfile
+          failure-threshold: error

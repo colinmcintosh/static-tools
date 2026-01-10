@@ -1,0 +1,203 @@
+# Release workflow for static-tools
+# Builds statically compiled binaries with SLSA Level 3 provenance
+#
+# This workflow:
+# 1. Builds binaries for each tool/architecture combination
+# 2. Generates SLSA provenance attestations
+# 3. Creates a GitHub release with artifacts and provenance
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions: {}
+
+env:
+  # Pinned versions for reproducibility
+  ALPINE_VERSION: "3.21"
+  ALPINE_DIGEST_AMD64: "sha256:41c81533144786e0beb2b148667355a6c7659aa99a14ed837ff15a98ca9d71f3"
+  ALPINE_DIGEST_ARM64: "sha256:fac2338de28c1143c0e69b48ba2d9b50481d5f1542b46c4656e5d6912d2d963a"
+
+jobs:
+  # Build job - runs on native runners for each architecture
+  build:
+    name: Build ${{ matrix.tool }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [mtr]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            platform: linux/amd64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+    outputs:
+      hashes-mtr-amd64: ${{ steps.hash.outputs.hashes-mtr-amd64 }}
+      hashes-mtr-arm64: ${{ steps.hash.outputs.hashes-mtr-arm64 }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Build ${{ matrix.tool }} for ${{ matrix.arch }}
+        run: |
+          make build-${{ matrix.tool }} ARCH=${{ matrix.arch }}
+
+      - name: Verify binary is statically linked
+        run: |
+          file dist/${{ matrix.tool }}/${{ matrix.arch }}/${{ matrix.tool }} | grep -q "statically linked"
+          echo "✓ Binary is statically linked"
+
+      - name: Generate artifact hashes
+        id: hash
+        run: |
+          cd dist/${{ matrix.tool }}/${{ matrix.arch }}
+          # Generate SHA256 hashes in base64 format for SLSA provenance
+          HASHES=$(sha256sum mtr mtr-packet | base64 -w0)
+          echo "hashes-${{ matrix.tool }}-${{ matrix.arch }}=${HASHES}" >> "$GITHUB_OUTPUT"
+
+      - name: Rename artifacts with architecture suffix
+        run: |
+          cd dist/${{ matrix.tool }}/${{ matrix.arch }}
+          for file in mtr mtr-packet; do
+            mv "$file" "$file-${{ matrix.arch }}"
+          done
+          # Update checksums file
+          sha256sum mtr-${{ matrix.arch }} mtr-packet-${{ matrix.arch }} > SHA256SUMS-${{ matrix.arch }}.txt
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.tool }}-${{ matrix.arch }}
+          path: |
+            dist/${{ matrix.tool }}/${{ matrix.arch }}/mtr-${{ matrix.arch }}
+            dist/${{ matrix.tool }}/${{ matrix.arch }}/mtr-packet-${{ matrix.arch }}
+            dist/${{ matrix.tool }}/${{ matrix.arch }}/SHA256SUMS-${{ matrix.arch }}.txt
+          if-no-files-found: error
+          retention-days: 5
+
+  # Combine hashes from all build jobs for SLSA provenance
+  combine-hashes:
+    name: Combine artifact hashes
+    needs: [build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      hashes: ${{ steps.combine.outputs.hashes }}
+
+    steps:
+      - name: Combine hashes
+        id: combine
+        run: |
+          # Decode and combine all hashes
+          echo "${{ needs.build.outputs.hashes-mtr-amd64 }}" | base64 -d > hashes.txt
+          echo "${{ needs.build.outputs.hashes-mtr-arm64 }}" | base64 -d >> hashes.txt
+          # Re-encode combined hashes
+          COMBINED=$(cat hashes.txt | base64 -w0)
+          echo "hashes=${COMBINED}" >> "$GITHUB_OUTPUT"
+
+  # Generate SLSA provenance using the generic generator
+  provenance:
+    name: Generate SLSA provenance
+    needs: [build, combine-hashes]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.combine-hashes.outputs.hashes }}"
+      upload-assets: true
+      provenance-name: multiple.intoto.jsonl
+
+  # Create GitHub release with all artifacts
+  release:
+    name: Create GitHub Release
+    needs: [build, provenance]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
+          merge-multiple: false
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          # Copy all binaries to release directory
+          find artifacts -type f \( -name "mtr-*" -o -name "SHA256SUMS-*.txt" \) -exec cp {} release/ \;
+          # Generate combined checksums
+          cd release
+          cat SHA256SUMS-*.txt > SHA256SUMS.txt
+          ls -la
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release/mtr-*
+            release/SHA256SUMS.txt
+          body: |
+            ## Static Binaries
+
+            This release includes statically compiled binaries with SLSA Level 3 provenance.
+
+            ### Included Tools
+            - **mtr** - Network diagnostic tool combining ping and traceroute
+
+            ### Architectures
+            - `amd64` (x86_64)
+            - `arm64` (aarch64)
+
+            ### Verification
+
+            Verify the SLSA provenance using [slsa-verifier](https://github.com/slsa-framework/slsa-verifier):
+
+            ```bash
+            slsa-verifier verify-artifact mtr-amd64 \
+              --provenance-path multiple.intoto.jsonl \
+              --source-uri github.com/${{ github.repository }}
+            ```
+
+            ### Checksums
+
+            See `SHA256SUMS.txt` for file checksums.
