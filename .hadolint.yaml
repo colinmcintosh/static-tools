@@ -1,0 +1,16 @@
+# Hadolint configuration
+# https://github.com/hadolint/hadolint
+
+# Ignore rules that don't apply to our use case
+ignored:
+  # DL3003: Use WORKDIR to switch to a directory
+  # We use cd within RUN for complex build steps
+  - DL3003
+  
+  # DL4006: Set the SHELL option -o pipefail
+  # Alpine uses busybox ash which handles pipes differently
+  - DL4006
+  
+  # SC2035: Use ./*glob* or -- *glob* so names with dashes won't become options
+  # The sha256sum command is safe with our controlled filenames
+  - SC2035

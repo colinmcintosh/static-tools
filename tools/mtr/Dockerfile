@@ -23,11 +23,10 @@ RUN apk add --no-cache \
     ncurses-dev=6.5_p20241006-r3 \
     ncurses-static=6.5_p20241006-r3
 
-# Download and verify source
+# Download and verify source (wget is included in Alpine base image)
 WORKDIR /src
-ADD --checksum=sha256:${MTR_SOURCE_SHA256} \
-    https://github.com/traviscross/mtr/archive/refs/tags/v${MTR_VERSION}.tar.gz \
-    /src/mtr.tar.gz
+RUN wget -q "https://github.com/traviscross/mtr/archive/refs/tags/v${MTR_VERSION}.tar.gz" -O mtr.tar.gz && \
+    echo "${MTR_SOURCE_SHA256}  mtr.tar.gz" | sha256sum -c -
 
 # Extract and build
 RUN tar xzf mtr.tar.gz && \
