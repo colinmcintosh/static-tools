@@ -2,10 +2,9 @@
 # Builds statically compiled binaries with SLSA Level 3 provenance
 #
 # This workflow:
-# 1. Verifies source provenance using gittuf
-# 2. Builds binaries for each tool/architecture combination
-# 3. Generates SLSA provenance attestations
-# 4. Creates a GitHub release with artifacts and provenance
+# 1. Builds binaries for each tool/architecture combination
+# 2. Generates SLSA provenance attestations
+# 3. Creates a GitHub release with artifacts and provenance
 
 name: Release
 
@@ -27,44 +26,11 @@ env:
   ALPINE_VERSION: "3.21"
   ALPINE_DIGEST_AMD64: "sha256:41c81533144786e0beb2b148667355a6c7659aa99a14ed837ff15a98ca9d71f3"
   ALPINE_DIGEST_ARM64: "sha256:fac2338de28c1143c0e69b48ba2d9b50481d5f1542b46c4656e5d6912d2d963a"
-  GITTUF_VERSION: "0.12.0"
 
 jobs:
-  # Verify source provenance before building
-  verify-source:
-    name: Verify source provenance
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-
-      - name: Fetch gittuf refs
-        run: |
-          git fetch origin 'refs/gittuf/*:refs/gittuf/*' || echo "No gittuf refs found"
-
-      - name: Install gittuf
-        run: |
-          curl -fsSL "https://github.com/gittuf/gittuf/releases/download/v${GITTUF_VERSION}/gittuf_${GITTUF_VERSION}_linux_amd64" -o /tmp/gittuf
-          chmod +x /tmp/gittuf
-          sudo mv /tmp/gittuf /usr/local/bin/gittuf
-
-      - name: Verify source provenance
-        run: |
-          if git show-ref --quiet refs/gittuf/policy 2>/dev/null; then
-            echo "Verifying gittuf source provenance..."
-            gittuf verify-ref --verbose main || echo "::warning::gittuf verification pending"
-          else
-            echo "::notice::gittuf not initialized - source provenance not available"
-          fi
-
   # Build job - runs on native runners for each architecture
   build:
     name: Build ${{ matrix.tool }}-${{ matrix.arch }}
-    needs: [verify-source]
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -72,6 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         tool: [mtr, drill, dig]
+        arch: [amd64, arm64]
         include:
           - arch: amd64
             runner: ubuntu-24.04

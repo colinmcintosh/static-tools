@@ -24,8 +24,8 @@ RUN apk add --no-cache \
     userspace-rcu-static=0.14.1-r1 \
     nghttp2-dev=1.64.0-r0 \
     nghttp2-static=1.64.0-r0 \
-    openssl-dev=3.3.5-r0 \
-    openssl-libs-static=3.3.5-r0 \
+    openssl-dev=3.3.6-r0 \
+    openssl-libs-static=3.3.6-r0 \
     libcap-dev=2.71-r0 \
     libcap-static=2.71-r0 \
     jemalloc-dev=5.3.0-r6 \

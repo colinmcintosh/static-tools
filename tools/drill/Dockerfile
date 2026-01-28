@@ -17,8 +17,8 @@ ARG TARGETARCH
 RUN apk add --no-cache \
     build-base=0.5-r3 \
     linux-headers=6.6-r1 \
-    openssl-dev=3.3.5-r0 \
-    openssl-libs-static=3.3.5-r0
+    openssl-dev=3.3.6-r0 \
+    openssl-libs-static=3.3.6-r0
 
 # Download and verify source
 WORKDIR /src
