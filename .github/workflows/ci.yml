@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: [mtr, dig, drill]
+        tool: [mtr, dig, drill, curl, wget, iperf3]
         arch: [amd64, arm64]
         include:
           - arch: amd64
