@@ -1,10 +1,10 @@
 # Release workflow for static-tools
-# Builds statically compiled binaries with SLSA Level 3 provenance
+# Builds statically compiled binaries with build provenance attestations
 #
 # This workflow:
 # 1. Builds binaries for each tool/architecture combination
-# 2. Generates SLSA provenance attestations
-# 3. Creates a GitHub release with artifacts and provenance
+# 2. Generates build provenance attestations using GitHub Attestations
+# 3. Creates a GitHub release with artifacts
 
 name: Release
 
@@ -34,6 +34,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -63,17 +65,6 @@ jobs:
           file dist/${{ matrix.tool }}/${{ matrix.arch }}/${{ matrix.tool }} | grep -q "statically linked"
           echo "✓ Binary is statically linked"
 
-      - name: Generate artifact hashes
-        id: hash
-        run: |
-          cd dist/${{ matrix.tool }}/${{ matrix.arch }}
-          # Generate SHA256 hashes for SLSA provenance
-          if [ "${{ matrix.tool }}" = "mtr" ]; then
-            sha256sum mtr mtr-packet > hashes.txt
-          else
-            sha256sum ${{ matrix.tool }} > hashes.txt
-          fi
-
       - name: Rename artifacts with architecture suffix
         run: |
           cd dist/${{ matrix.tool }}/${{ matrix.arch }}
@@ -87,6 +78,12 @@ jobs:
             sha256sum ${{ matrix.tool }}-${{ matrix.arch }} > SHA256SUMS-${{ matrix.arch }}.txt
           fi
 
+      - name: Generate build provenance attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/${{ matrix.tool }}/${{ matrix.arch }}/*-${{ matrix.arch }}
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -97,60 +94,10 @@ jobs:
           if-no-files-found: error
           retention-days: 5
 
-      - name: Upload hash artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: hashes-${{ matrix.tool }}-${{ matrix.arch }}
-          path: dist/${{ matrix.tool }}/${{ matrix.arch }}/hashes.txt
-          if-no-files-found: error
-          retention-days: 1
-
-  # Combine hashes from all build jobs for SLSA provenance
-  combine-hashes:
-    name: Combine artifact hashes
-    needs: [build]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    outputs:
-      hashes: ${{ steps.combine.outputs.hashes }}
-
-    steps:
-      - name: Download all hash artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: hashes-*
-          path: hashes
-          merge-multiple: false
-
-      - name: Combine hashes
-        id: combine
-        run: |
-          # Combine all hashes from artifacts
-          find hashes -name "hashes.txt" -exec cat {} \; > combined-hashes.txt
-          cat combined-hashes.txt
-          # Encode combined hashes in base64 for SLSA
-          COMBINED=$(cat combined-hashes.txt | base64 -w0)
-          echo "hashes=${COMBINED}" >> "$GITHUB_OUTPUT"
-
-  # Generate SLSA provenance using the generic generator
-  provenance:
-    name: Generate SLSA provenance
-    needs: [build, combine-hashes]
-    permissions:
-      actions: read
-      id-token: write
-      contents: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
-    with:
-      base64-subjects: "${{ needs.combine-hashes.outputs.hashes }}"
-      upload-assets: false
-      provenance-name: multiple.intoto.jsonl
-
   # Create GitHub release with all artifacts
   release:
     name: Create GitHub Release
-    needs: [build, provenance]
+    needs: [build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -165,19 +112,11 @@ jobs:
           path: artifacts
           merge-multiple: false
 
-      - name: Download SLSA provenance
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: multiple.intoto.jsonl
-          path: provenance
-
       - name: Prepare release assets
         run: |
           mkdir -p release
           # Copy all binaries to release directory
           find artifacts -type f \( -name "mtr-*" -o -name "drill-*" -o -name "dig-*" -o -name "SHA256SUMS-*.txt" \) -exec cp {} release/ \;
-          # Copy provenance file
-          cp provenance/multiple.intoto.jsonl release/
           # Generate combined checksums
           cd release
           cat SHA256SUMS-*.txt > SHA256SUMS.txt
@@ -206,11 +145,10 @@ jobs:
             release/drill-*
             release/dig-*
             release/SHA256SUMS.txt
-            release/multiple.intoto.jsonl
           body: |
             ## Static Binaries
 
-            This release includes statically compiled binaries with SLSA Level 3 provenance.
+            This release includes statically compiled binaries with build provenance attestations.
 
             ### Included Tools
             - **mtr** (v0.95) - Network diagnostic tool combining ping and traceroute
@@ -223,23 +161,17 @@ jobs:
 
             ### Verification
 
-            Verify the SLSA provenance using [slsa-verifier](https://github.com/slsa-framework/slsa-verifier):
+            Verify build provenance using the [GitHub CLI](https://cli.github.com/):
 
             ```bash
             # Verify mtr
-            slsa-verifier verify-artifact mtr-amd64 \
-              --provenance-path multiple.intoto.jsonl \
-              --source-uri github.com/${{ github.repository }}
+            gh attestation verify mtr-amd64 --repo ${{ github.repository }}
 
             # Verify dig
-            slsa-verifier verify-artifact dig-amd64 \
-              --provenance-path multiple.intoto.jsonl \
-              --source-uri github.com/${{ github.repository }}
+            gh attestation verify dig-amd64 --repo ${{ github.repository }}
 
             # Verify drill
-            slsa-verifier verify-artifact drill-amd64 \
-              --provenance-path multiple.intoto.jsonl \
-              --source-uri github.com/${{ github.repository }}
+            gh attestation verify drill-amd64 --repo ${{ github.repository }}
             ```
 
             ### Checksums
