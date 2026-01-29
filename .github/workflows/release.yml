@@ -46,13 +46,6 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
             platform: linux/arm64
-    outputs:
-      hashes-mtr-amd64: ${{ steps.hash.outputs.hashes-mtr-amd64 }}
-      hashes-mtr-arm64: ${{ steps.hash.outputs.hashes-mtr-arm64 }}
-      hashes-drill-amd64: ${{ steps.hash.outputs.hashes-drill-amd64 }}
-      hashes-drill-arm64: ${{ steps.hash.outputs.hashes-drill-arm64 }}
-      hashes-dig-amd64: ${{ steps.hash.outputs.hashes-dig-amd64 }}
-      hashes-dig-arm64: ${{ steps.hash.outputs.hashes-dig-arm64 }}
 
     steps:
       - name: Checkout repository
@@ -74,13 +67,12 @@ jobs:
         id: hash
         run: |
           cd dist/${{ matrix.tool }}/${{ matrix.arch }}
-          # Generate SHA256 hashes in base64 format for SLSA provenance
+          # Generate SHA256 hashes for SLSA provenance
           if [ "${{ matrix.tool }}" = "mtr" ]; then
-            HASHES=$(sha256sum mtr mtr-packet | base64 -w0)
+            sha256sum mtr mtr-packet > hashes.txt
           else
-            HASHES=$(sha256sum ${{ matrix.tool }} | base64 -w0)
+            sha256sum ${{ matrix.tool }} > hashes.txt
           fi
-          echo "hashes-${{ matrix.tool }}-${{ matrix.arch }}=${HASHES}" >> "$GITHUB_OUTPUT"
 
       - name: Rename artifacts with architecture suffix
         run: |
@@ -105,6 +97,14 @@ jobs:
           if-no-files-found: error
           retention-days: 5
 
+      - name: Upload hash artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: hashes-${{ matrix.tool }}-${{ matrix.arch }}
+          path: dist/${{ matrix.tool }}/${{ matrix.arch }}/hashes.txt
+          if-no-files-found: error
+          retention-days: 1
+
   # Combine hashes from all build jobs for SLSA provenance
   combine-hashes:
     name: Combine artifact hashes
@@ -116,18 +116,21 @@ jobs:
       hashes: ${{ steps.combine.outputs.hashes }}
 
     steps:
+      - name: Download all hash artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: hashes-*
+          path: hashes
+          merge-multiple: false
+
       - name: Combine hashes
         id: combine
         run: |
-          # Decode and combine all hashes
-          echo "${{ needs.build.outputs.hashes-mtr-amd64 }}" | base64 -d > hashes.txt
-          echo "${{ needs.build.outputs.hashes-mtr-arm64 }}" | base64 -d >> hashes.txt
-          echo "${{ needs.build.outputs.hashes-drill-amd64 }}" | base64 -d >> hashes.txt
-          echo "${{ needs.build.outputs.hashes-drill-arm64 }}" | base64 -d >> hashes.txt
-          echo "${{ needs.build.outputs.hashes-dig-amd64 }}" | base64 -d >> hashes.txt
-          echo "${{ needs.build.outputs.hashes-dig-arm64 }}" | base64 -d >> hashes.txt
-          # Re-encode combined hashes
-          COMBINED=$(cat hashes.txt | base64 -w0)
+          # Combine all hashes from artifacts
+          find hashes -name "hashes.txt" -exec cat {} \; > combined-hashes.txt
+          cat combined-hashes.txt
+          # Encode combined hashes in base64 for SLSA
+          COMBINED=$(cat combined-hashes.txt | base64 -w0)
           echo "hashes=${COMBINED}" >> "$GITHUB_OUTPUT"
 
   # Generate SLSA provenance using the generic generator
