@@ -6,6 +6,14 @@ Statically compiled binaries for common Linux tools with verified SLSA Level 3 s
 
 This repository provides statically linked binaries that can run on any Linux system without dependencies. All builds are performed in containers with cryptographically signed provenance attestations, enabling verification of the complete build chain.
 
+The provenance provided by this repository is intended to prove the supply chain between upstream
+source code (i.e. the source for the binary being built) and the binary used by an end user. You
+and be assured that the binaries provided by this repo are built in public view using legitimate
+and verified source code. This does not prove the supply chain for upstream source code.
+
+In the future this repository may classify binaries generated from source code which itself provides
+SLSA 3+ provenance. For now that is left up to the user.
+
 ## Available Tools
 
 | Tool | Version | Description |
