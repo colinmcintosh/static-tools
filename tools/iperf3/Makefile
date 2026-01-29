@@ -63,6 +63,21 @@ test: build
 	@file $(TOOL_OUT_DIR)/$(ARCH)/iperf3 | grep -q "statically linked" || \
 		(echo "ERROR: Binary is not statically linked" && exit 1)
 	@echo "✓ iperf3 binary is statically linked"
+	@# Run iperf3 --version in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/iperf3:/iperf3:ro \
+		alpine:$(ALPINE_VERSION) /iperf3 --version 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "iperf" || \
+		(echo "ERROR: iperf3 --version failed" && exit 1)
+	@echo "✓ iperf3 --version works"
+	@# Run iperf3 --help in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/iperf3:/iperf3:ro \
+		alpine:$(ALPINE_VERSION) /iperf3 --help 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "usage" || \
+		(echo "ERROR: iperf3 --help failed" && exit 1)
+	@echo "✓ iperf3 --help works"
+	@echo "==> All iperf3 tests passed"
 
 # Verify static linking
 .PHONY: verify-static

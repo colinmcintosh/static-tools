@@ -63,6 +63,28 @@ test: build
 	@file $(TOOL_OUT_DIR)/$(ARCH)/curl | grep -q "statically linked" || \
 		(echo "ERROR: Binary is not statically linked" && exit 1)
 	@echo "✓ curl binary is statically linked"
+	@# Run curl --version in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
+		alpine:$(ALPINE_VERSION) /curl --version 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "curl" || \
+		(echo "ERROR: curl --version failed" && exit 1)
+	@echo "✓ curl --version works"
+	@# Run curl --help in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
+		alpine:$(ALPINE_VERSION) /curl --help 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "usage" || \
+		(echo "ERROR: curl --help failed" && exit 1)
+	@echo "✓ curl --help works"
+	@# Run a basic HTTP request
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
+		alpine:$(ALPINE_VERSION) /curl -s -o /dev/null -w "%{http_code}" https://example.com 2>&1) && \
+		echo "$$OUTPUT" | grep -q "200" || \
+		(echo "ERROR: curl HTTP request failed" && exit 1)
+	@echo "✓ curl HTTP request works"
+	@echo "==> All curl tests passed"
 
 # Verify static linking
 .PHONY: verify-static

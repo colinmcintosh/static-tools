@@ -63,6 +63,27 @@ test: build
 	@file $(TOOL_OUT_DIR)/$(ARCH)/wget | grep -q "statically linked" || \
 		(echo "ERROR: Binary is not statically linked" && exit 1)
 	@echo "✓ wget binary is statically linked"
+	@# Run wget --version in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
+		alpine:$(ALPINE_VERSION) /wget --version 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "wget" || \
+		(echo "ERROR: wget --version failed" && exit 1)
+	@echo "✓ wget --version works"
+	@# Run wget --help in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
+		alpine:$(ALPINE_VERSION) /wget --help 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "usage" || \
+		(echo "ERROR: wget --help failed" && exit 1)
+	@echo "✓ wget --help works"
+	@# Run a basic HTTP request
+	@$(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
+		alpine:$(ALPINE_VERSION) /wget -q --spider https://example.com && \
+		echo "✓ wget HTTP request works" || \
+		(echo "ERROR: wget HTTP request failed" && exit 1)
+	@echo "==> All wget tests passed"
 
 # Verify static linking
 .PHONY: verify-static
