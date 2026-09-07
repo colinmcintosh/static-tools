@@ -17,6 +17,7 @@ BUILDX ?= $(DOCKER) buildx
 # Output directory
 OUT_DIR ?= $(CURDIR)/../../dist
 TOOL_OUT_DIR := $(OUT_DIR)/iperf3
+DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
 
 # Image name for intermediate builds
 IMAGE_NAME := static-tools-iperf3-builder
@@ -29,13 +30,18 @@ PLATFORM_arm64 := linux/arm64
 ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
 ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
 
+.PHONY: deps
+deps:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
+
 .PHONY: build
 build: $(TOOL_OUT_DIR)/$(ARCH)/iperf3
 
-$(TOOL_OUT_DIR)/$(ARCH)/iperf3: Dockerfile versions.mk
+$(TOOL_OUT_DIR)/$(ARCH)/iperf3: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
+		--build-context deps=$(DEPS_PREFIX) \
 		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
 		--build-arg IPERF3_VERSION=$(IPERF3_VERSION) \
@@ -43,6 +49,9 @@ $(TOOL_OUT_DIR)/$(ARCH)/iperf3: Dockerfile versions.mk
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \
 		.
+
+$(DEPS_PREFIX)/lib/libssl.a:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 	@echo "Built iperf3 $(IPERF3_VERSION) for $(ARCH):"
 	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
 
@@ -66,14 +75,14 @@ test: build
 	@# Run iperf3 --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/iperf3:/iperf3:ro \
-		alpine:$(ALPINE_VERSION) /iperf3 --version 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /iperf3 --version 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "iperf" || \
 		(echo "ERROR: iperf3 --version failed" && exit 1)
 	@echo "✓ iperf3 --version works"
 	@# Run iperf3 --help in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/iperf3:/iperf3:ro \
-		alpine:$(ALPINE_VERSION) /iperf3 --help 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /iperf3 --help 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: iperf3 --help failed" && exit 1)
 	@echo "✓ iperf3 --help works"
