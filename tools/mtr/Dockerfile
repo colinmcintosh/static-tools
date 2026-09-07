@@ -17,8 +17,8 @@ RUN apk add --no-cache \
     autoconf=2.72-r0 \
     automake=1.17-r0 \
     build-base=0.5-r3 \
-    libcap-dev=2.71-r0 \
-    libcap-static=2.71-r0 \
+    libcap-dev=2.78-r0 \
+    libcap-static=2.78-r0 \
     linux-headers=6.6-r1 \
     ncurses-dev=6.5_p20241006-r3 \
     ncurses-static=6.5_p20241006-r3

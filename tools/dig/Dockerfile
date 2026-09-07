@@ -17,20 +17,20 @@ ARG TARGETARCH
 RUN apk add --no-cache \
     build-base=0.5-r3 \
     linux-headers=6.6-r1 \
-    perl=5.40.3-r0 \
+    perl=5.40.4-r0 \
     libuv-dev=1.49.2-r0 \
     libuv-static=1.49.2-r0 \
     userspace-rcu-dev=0.14.1-r1 \
     userspace-rcu-static=0.14.1-r1 \
-    nghttp2-dev=1.64.0-r0 \
-    nghttp2-static=1.64.0-r0 \
-    openssl-dev=3.3.6-r0 \
-    openssl-libs-static=3.3.6-r0 \
-    libcap-dev=2.71-r0 \
-    libcap-static=2.71-r0 \
+    nghttp2-dev=1.69.0-r0 \
+    nghttp2-static=1.69.0-r0 \
+    openssl-dev=3.3.7-r0 \
+    openssl-libs-static=3.3.7-r0 \
+    libcap-dev=2.78-r0 \
+    libcap-static=2.78-r0 \
     jemalloc-dev=5.3.0-r6 \
     jemalloc-static=5.3.0-r6 \
-    xz=5.6.3-r1
+    xz=5.8.3-r0
 
 # Download and verify source
 WORKDIR /src

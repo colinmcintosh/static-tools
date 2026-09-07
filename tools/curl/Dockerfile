@@ -17,14 +17,14 @@ ARG TARGETARCH
 RUN apk add --no-cache \
     build-base=0.5-r3 \
     linux-headers=6.6-r1 \
-    perl=5.40.3-r0 \
-    openssl-dev=3.3.6-r0 \
-    openssl-libs-static=3.3.6-r0 \
-    nghttp2-dev=1.64.0-r0 \
-    nghttp2-static=1.64.0-r0 \
-    zlib-dev=1.3.1-r2 \
-    zlib-static=1.3.1-r2 \
-    xz=5.6.3-r1
+    perl=5.40.4-r0 \
+    openssl-dev=3.3.7-r0 \
+    openssl-libs-static=3.3.7-r0 \
+    nghttp2-dev=1.69.0-r0 \
+    nghttp2-static=1.69.0-r0 \
+    zlib-dev=1.3.2-r0 \
+    zlib-static=1.3.2-r0 \
+    xz=5.8.3-r0
 
 # Download and verify source
 WORKDIR /src
