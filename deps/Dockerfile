@@ -91,7 +91,7 @@ RUN wget -q "${OPENSSL_URL}" -O openssl.tar.gz && \
         no-shared \
         no-tests \
         no-docs \
-        zlib \
+        no-zlib \
         "${OPENSSL_TARGET}" && \
     make -j"$(nproc)" && \
     make install_sw && \
