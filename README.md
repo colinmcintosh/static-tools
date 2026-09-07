@@ -6,6 +6,14 @@ Statically compiled binaries for common Linux tools with verified SLSA Level 3 s
 
 This repository provides statically linked binaries that can run on any Linux system without dependencies. All builds are performed in containers with cryptographically signed provenance attestations, enabling verification of the complete build chain.
 
+The provenance provided by this repository is intended to prove the supply chain between upstream
+source code (i.e. the source for the binary being built) and the binary used by an end user. You
+can be assured that the binaries provided by this repo are built in public view using legitimate
+and verified source code. This does not prove the supply chain for upstream source code.
+
+In the future this repository may classify binaries generated from source code which itself provides
+SLSA 3+ provenance. For now that is left up to the user.
+
 ## Available Tools
 
 | Tool | Version | Description |
@@ -13,6 +21,9 @@ This repository provides statically linked binaries that can run on any Linux sy
 | mtr | 0.95 | Network diagnostic combining ping and traceroute |
 | drill | 1.8.4 | DNS lookup utility (ldns) - lightweight dig alternative |
 | dig | 9.16.50 | DNS lookup utility from BIND - full-featured DNS diagnostics |
+| curl | 8.11.1 | Command line URL transfer tool |
+| wget | 1.25.0 | Network file retriever |
+| iperf3 | 3.18 | Network bandwidth measurement tool |
 
 ## Supported Architectures
 
@@ -42,6 +53,21 @@ mv dig-amd64 dig
 curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/drill-amd64
 chmod +x drill-amd64
 mv drill-amd64 drill
+
+# Download curl
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/curl-amd64
+chmod +x curl-amd64
+mv curl-amd64 curl
+
+# Download wget
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/wget-amd64
+chmod +x wget-amd64
+mv wget-amd64 wget
+
+# Download iperf3
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/iperf3-amd64
+chmod +x iperf3-amd64
+mv iperf3-amd64 iperf3
 ```
 
 ### Verify Provenance (Recommended)
@@ -64,6 +90,11 @@ slsa-verifier verify-artifact mtr-amd64 \
 slsa-verifier verify-artifact dig-amd64 \
   --provenance-path multiple.intoto.jsonl \
   --source-uri github.com/colinmcintosh/static-tools
+
+# Verify curl
+slsa-verifier verify-artifact curl-amd64 \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/colinmcintosh/static-tools
 ```
 
 Or use the included verification script:
@@ -71,6 +102,7 @@ Or use the included verification script:
 ```bash
 ./scripts/verify.sh mtr-amd64 multiple.intoto.jsonl
 ./scripts/verify.sh dig-amd64 multiple.intoto.jsonl
+./scripts/verify.sh curl-amd64 multiple.intoto.jsonl
 ```
 
 ## Building Locally
@@ -87,6 +119,9 @@ Or use the included verification script:
 make build-mtr
 make build-dig
 make build-drill
+make build-curl
+make build-wget
+make build-iperf3
 
 # Build all tools
 make build
@@ -99,6 +134,9 @@ make build
 make build-all-mtr
 make build-all-dig
 make build-all-drill
+make build-all-curl
+make build-all-wget
+make build-all-iperf3
 
 # Build all tools for all architectures
 make build-all
@@ -110,6 +148,9 @@ make build-all
 make test-mtr
 make test-dig
 make test-drill
+make test-curl
+make test-wget
+make test-iperf3
 
 # Test all tools
 make test
@@ -137,8 +178,20 @@ static-tools/
 │   │   ├── Dockerfile          # ldns-based DNS lookup tool
 │   │   ├── Makefile
 │   │   └── versions.mk
-│   └── dig/
-│       ├── Dockerfile          # BIND-based DNS lookup tool
+│   ├── dig/
+│   │   ├── Dockerfile          # BIND-based DNS lookup tool
+│   │   ├── Makefile
+│   │   └── versions.mk
+│   ├── curl/
+│   │   ├── Dockerfile          # curl URL transfer tool
+│   │   ├── Makefile
+│   │   └── versions.mk
+│   ├── wget/
+│   │   ├── Dockerfile          # wget network file retriever
+│   │   ├── Makefile
+│   │   └── versions.mk
+│   └── iperf3/
+│       ├── Dockerfile          # iperf3 bandwidth measurement tool
 │       ├── Makefile
 │       └── versions.mk
 ├── .github/
@@ -248,3 +301,6 @@ Individual tools retain their original licenses:
 - mtr: GPL-2.0
 - drill (ldns): BSD-3-Clause
 - dig (BIND): MPL-2.0
+- curl: curl (ISC-like / MIT-derived)
+- wget: GPL-3.0
+- iperf3: BSD-3-Clause

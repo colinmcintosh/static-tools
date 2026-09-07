@@ -55,14 +55,29 @@ build-all:
 .PHONY: test
 test: build
 	@echo "==> Testing mtr binary for $(ARCH)"
+	@# Check if binary exists
+	@test -x $(TOOL_OUT_DIR)/$(ARCH)/mtr || \
+		(echo "ERROR: mtr binary not found or not executable" && exit 1)
+	@echo "✓ mtr binary exists"
+	@# Check static linking
 	@file $(TOOL_OUT_DIR)/$(ARCH)/mtr | grep -q "statically linked" || \
 		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ Binary is statically linked"
-	@# Run mtr --version in a minimal container
-	$(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+	@echo "✓ mtr binary is statically linked"
+	@# Run mtr --version in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/mtr:/mtr:ro \
-		alpine:$(ALPINE_VERSION) /mtr --version
-	@echo "✓ Binary executes successfully"
+		alpine:$(ALPINE_VERSION) /mtr --version 2>&1) && \
+		echo "$$OUTPUT" | grep -q "mtr" || \
+		(echo "ERROR: mtr --version failed" && exit 1)
+	@echo "✓ mtr --version works"
+	@# Run mtr --help in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/mtr:/mtr:ro \
+		alpine:$(ALPINE_VERSION) /mtr --help 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "usage\|options\|hostname" || \
+		(echo "ERROR: mtr --help failed" && exit 1)
+	@echo "✓ mtr --help works"
+	@echo "==> All mtr tests passed"
 
 # Clean build artifacts
 .PHONY: clean

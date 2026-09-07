@@ -63,6 +63,28 @@ test: build
 	@file $(TOOL_OUT_DIR)/$(ARCH)/drill | grep -q "statically linked" || \
 		(echo "ERROR: Binary is not statically linked" && exit 1)
 	@echo "✓ drill binary is statically linked"
+	@# Run drill -v in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/drill:/drill:ro \
+		alpine:$(ALPINE_VERSION) /drill -v 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "version" || \
+		(echo "ERROR: drill -v failed" && exit 1)
+	@echo "✓ drill -v works"
+	@# Run drill -h in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/drill:/drill:ro \
+		alpine:$(ALPINE_VERSION) /drill -h 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "Usage" || \
+		(echo "ERROR: drill -h failed" && exit 1)
+	@echo "✓ drill -h works"
+	@# Run a basic DNS query
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/drill:/drill:ro \
+		alpine:$(ALPINE_VERSION) /drill @1.1.1.1 example.com A 2>&1) && \
+		echo "$$OUTPUT" | grep -q "ANSWER SECTION" || \
+		(echo "ERROR: drill DNS query failed" && exit 1)
+	@echo "✓ drill DNS query works"
+	@echo "==> All drill tests passed"
 
 # Verify static linking
 .PHONY: verify-static

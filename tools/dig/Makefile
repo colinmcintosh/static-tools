@@ -63,6 +63,28 @@ test: build
 	@file $(TOOL_OUT_DIR)/$(ARCH)/dig | grep -q "statically linked" || \
 		(echo "ERROR: Binary is not statically linked" && exit 1)
 	@echo "✓ dig binary is statically linked"
+	@# Run dig -v in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
+		alpine:$(ALPINE_VERSION) /dig -v 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "dig" || \
+		(echo "ERROR: dig -v failed" && exit 1)
+	@echo "✓ dig -v works"
+	@# Run dig -h in a container
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
+		alpine:$(ALPINE_VERSION) /dig -h 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "usage" || \
+		(echo "ERROR: dig -h failed" && exit 1)
+	@echo "✓ dig -h works"
+	@# Run a basic DNS query
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
+		alpine:$(ALPINE_VERSION) /dig @1.1.1.1 example.com A +short 2>&1) && \
+		echo "$$OUTPUT" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" || \
+		(echo "ERROR: dig DNS query failed" && exit 1)
+	@echo "✓ dig DNS query works"
+	@echo "==> All dig tests passed"
 
 # Verify static linking
 .PHONY: verify-static

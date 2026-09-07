@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: [mtr, drill, dig]
+        tool: [mtr, drill, dig, curl, wget, iperf3]
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -116,7 +116,7 @@ jobs:
         run: |
           mkdir -p release
           # Copy all binaries to release directory
-          find artifacts -type f \( -name "mtr-*" -o -name "drill-*" -o -name "dig-*" -o -name "SHA256SUMS-*.txt" \) -exec cp {} release/ \;
+          find artifacts -type f \( -name "mtr-*" -o -name "drill-*" -o -name "dig-*" -o -name "curl-*" -o -name "wget-*" -o -name "iperf3-*" -o -name "SHA256SUMS-*.txt" \) -exec cp {} release/ \;
           # Generate combined checksums
           cd release
           cat SHA256SUMS-*.txt > SHA256SUMS.txt
@@ -144,6 +144,9 @@ jobs:
             release/mtr-*
             release/drill-*
             release/dig-*
+            release/curl-*
+            release/wget-*
+            release/iperf3-*
             release/SHA256SUMS.txt
           body: |
             ## Static Binaries
@@ -154,6 +157,9 @@ jobs:
             - **mtr** (v0.95) - Network diagnostic tool combining ping and traceroute
             - **drill** (v1.8.4) - DNS lookup utility from ldns - lightweight dig alternative
             - **dig** (v9.16.50) - DNS lookup utility from BIND - full-featured DNS diagnostics
+            - **curl** (v8.11.1) - Command line URL transfer tool
+            - **wget** (v1.25.0) - Network file retriever
+            - **iperf3** (v3.18) - Network bandwidth measurement tool
 
             ### Architectures
             - `amd64` (x86_64)
