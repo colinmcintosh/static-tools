@@ -1,0 +1,33 @@
+# Shared static library prefix (built from upstream tarballs).
+# Official gcc images are Debian/glibc-only, so the compiler is Alpine's
+# musl gcc from a digest-pinned base image plus apk-pinned build-base
+# and linux-headers (those two have been stable on 3.21). C libraries
+# are NOT installed via apk; they are fetched by URL and verified with SHA256.
+
+ALPINE_VERSION := 3.21
+ALPINE_DIGEST_AMD64 := sha256:41c81533144786e0beb2b148667355a6c7659aa99a14ed837ff15a98ca9d71f3
+ALPINE_DIGEST_ARM64 := sha256:fac2338de28c1143c0e69b48ba2d9b50481d5f1542b46c4656e5d6912d2d963a
+
+# Host tools built into the prefix (perl is required by OpenSSL Configure)
+PERL_VERSION := 5.40.2
+PERL_URL := https://www.cpan.org/src/5.0/perl-$(PERL_VERSION).tar.gz
+PERL_SHA256 := 10d4647cfbb543a7f9ae3e5f6851ec49305232ea7621aed24c7cfbb0bef4b70d
+
+PKG_CONFIG_VERSION := 0.29.2
+PKG_CONFIG_URL := https://pkg-config.freedesktop.org/releases/pkg-config-$(PKG_CONFIG_VERSION).tar.gz
+PKG_CONFIG_SHA256 := 6fc69c01688c9458a57eb9a1664c9aba372ccda420a02bf4429fe610e7e7d591
+
+# Libraries
+ZLIB_VERSION := 1.3.2
+ZLIB_URL := https://github.com/madler/zlib/releases/download/v$(ZLIB_VERSION)/zlib-$(ZLIB_VERSION).tar.gz
+ZLIB_SHA256 := bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16
+
+OPENSSL_VERSION := 3.3.7
+OPENSSL_URL := https://github.com/openssl/openssl/releases/download/openssl-$(OPENSSL_VERSION)/openssl-$(OPENSSL_VERSION).tar.gz
+OPENSSL_SHA256 := 4900be54e81c4dfe00bb1a10dad33fd8414833573c40d0e9e3274d4ed32e53a2
+
+NGHTTP2_VERSION := 1.69.0
+NGHTTP2_URL := https://github.com/nghttp2/nghttp2/releases/download/v$(NGHTTP2_VERSION)/nghttp2-$(NGHTTP2_VERSION).tar.gz
+NGHTTP2_SHA256 := c866b7477cbb7512ab6863a685027adbb1bb8da8fc3bab7429ed43d3281d5aa9
+
+PREFIX := /opt/st

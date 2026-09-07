@@ -51,6 +51,16 @@ tag-release: ## Tag the current commit with the release version
 .PHONY: all
 all: build
 
+# Shared static library prefix (openssl, zlib, nghttp2, ...)
+.PHONY: deps
+deps:
+	@echo "==> Building static prefix for $(HOST_ARCH)"
+	$(MAKE) -C deps build ARCH=$(HOST_ARCH) OUT_DIR=$(OUT_DIR)
+
+.PHONY: deps-all
+deps-all:
+	$(MAKE) -C deps build-all OUT_DIR=$(OUT_DIR)
+
 # Build all tools for host architecture (local development)
 .PHONY: build
 build: $(addprefix build-,$(TOOLS))
@@ -94,6 +104,7 @@ lint:
 		chmod +x /tmp/hadolint; \
 		HADOLINT=/tmp/hadolint; \
 	fi; \
+	$$HADOLINT --config .hadolint.yaml deps/Dockerfile || exit 1; \
 	for tool in $(TOOLS); do \
 		$$HADOLINT --config .hadolint.yaml tools/$$tool/Dockerfile || exit 1; \
 	done
@@ -118,6 +129,7 @@ gittuf-verify:
 .PHONY: clean
 clean:
 	rm -rf $(OUT_DIR)
+	$(MAKE) -C deps clean OUT_DIR=$(OUT_DIR);
 	$(foreach tool,$(TOOLS),$(MAKE) -C tools/$(tool) clean;)
 
 # List available tools
@@ -132,6 +144,7 @@ help:
 	@echo "static-tools - Statically compiled binaries with SLSA provenance"
 	@echo ""
 	@echo "Usage:"
+	@echo "  make deps           Build shared static library prefix for $(HOST_ARCH)"
 	@echo "  make build          Build all tools for host architecture ($(HOST_ARCH))"
 	@echo "  make build-mtr      Build specific tool for host architecture"
 	@echo "  make build-all      Build all tools for all architectures (amd64, arm64)"
