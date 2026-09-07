@@ -14,7 +14,11 @@ ARG PREFIX=/opt/st
 # build-base and linux-headers have been stable across Alpine 3.21; they
 # provide gcc/make/strip/musl-dev. Do not apk-add openssl/zlib/nghttp2/perl.
 RUN apk add --no-cache \
+    autoconf=2.72-r0 \
+    automake=1.17-r0 \
     build-base=0.5-r3 \
+    bzip2=1.0.8-r6 \
+    libtool=2.4.7-r3 \
     linux-headers=6.6-r1
 
 ENV PATH="${PREFIX}/bin:${PATH}" \
@@ -151,6 +155,55 @@ RUN wget -q "${LIBCAP_URL}" -O libcap.tar.gz && \
     make -C libcap prefix="${PREFIX}" lib=lib SHARED=no GOLANG=no install && \
     cd /src && rm -rf libcap.tar.gz libcap-${LIBCAP_VERSION}
 
+# --- libuv ---
+ARG LIBUV_VERSION
+ARG LIBUV_URL
+ARG LIBUV_SHA256
+RUN wget -q "${LIBUV_URL}" -O libuv.tar.gz && \
+    echo "${LIBUV_SHA256}  libuv.tar.gz" | sha256sum -c - && \
+    tar xzf libuv.tar.gz && \
+    cd libuv-v${LIBUV_VERSION} && \
+    ./autogen.sh && \
+    ./configure \
+        --prefix="${PREFIX}" \
+        --disable-shared \
+        --enable-static && \
+    make -j"$(nproc)" && \
+    make install && \
+    cd /src && rm -rf libuv.tar.gz libuv-v${LIBUV_VERSION}
+
+# --- userspace-rcu ---
+ARG URCU_VERSION
+ARG URCU_URL
+ARG URCU_SHA256
+RUN wget -q "${URCU_URL}" -O urcu.tar.bz2 && \
+    echo "${URCU_SHA256}  urcu.tar.bz2" | sha256sum -c - && \
+    tar xjf urcu.tar.bz2 && \
+    cd userspace-rcu-${URCU_VERSION} && \
+    ./configure \
+        --prefix="${PREFIX}" \
+        --disable-shared \
+        --enable-static && \
+    make -j"$(nproc)" && \
+    make install && \
+    cd /src && rm -rf urcu.tar.bz2 userspace-rcu-${URCU_VERSION}
+
+# --- jemalloc ---
+ARG JEMALLOC_VERSION
+ARG JEMALLOC_URL
+ARG JEMALLOC_SHA256
+RUN wget -q "${JEMALLOC_URL}" -O jemalloc.tar.bz2 && \
+    echo "${JEMALLOC_SHA256}  jemalloc.tar.bz2" | sha256sum -c - && \
+    tar xjf jemalloc.tar.bz2 && \
+    cd jemalloc-${JEMALLOC_VERSION} && \
+    ./configure \
+        --prefix="${PREFIX}" \
+        --disable-shared \
+        --enable-static && \
+    make -j"$(nproc)" && \
+    make install && \
+    cd /src && rm -rf jemalloc.tar.bz2 jemalloc-${JEMALLOC_VERSION}
+
 # Drop perl from the exported prefix; tools only need headers and static libs.
 RUN rm -rf \
         "${PREFIX}/bin/perl" \
@@ -164,7 +217,10 @@ RUN rm -rf \
     test -f "${PREFIX}/lib/libz.a" && \
     test -f "${PREFIX}/lib/libnghttp2.a" && \
     test -f "${PREFIX}/lib/libncursesw.a" && \
-    test -f "${PREFIX}/lib/libcap.a"
+    test -f "${PREFIX}/lib/libcap.a" && \
+    test -f "${PREFIX}/lib/libuv.a" && \
+    test -f "${PREFIX}/lib/liburcu.a" && \
+    test -f "${PREFIX}/lib/libjemalloc.a"
 
 FROM scratch AS export
 COPY --from=builder /opt/st /

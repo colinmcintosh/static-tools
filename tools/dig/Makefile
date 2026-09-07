@@ -17,6 +17,7 @@ BUILDX ?= $(DOCKER) buildx
 # Output directory
 OUT_DIR ?= $(CURDIR)/../../dist
 TOOL_OUT_DIR := $(OUT_DIR)/dig
+DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
 
 # Image name for intermediate builds
 IMAGE_NAME := static-tools-dig-builder
@@ -29,13 +30,18 @@ PLATFORM_arm64 := linux/arm64
 ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
 ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
 
+.PHONY: deps
+deps:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
+
 .PHONY: build
 build: $(TOOL_OUT_DIR)/$(ARCH)/dig
 
-$(TOOL_OUT_DIR)/$(ARCH)/dig: Dockerfile versions.mk
+$(TOOL_OUT_DIR)/$(ARCH)/dig: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libuv.a
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
+		--build-context deps=$(DEPS_PREFIX) \
 		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
 		--build-arg BIND9_VERSION=$(BIND9_VERSION) \
@@ -45,6 +51,9 @@ $(TOOL_OUT_DIR)/$(ARCH)/dig: Dockerfile versions.mk
 		.
 	@echo "Built dig (from BIND $(BIND9_VERSION)) for $(ARCH):"
 	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
+
+$(DEPS_PREFIX)/lib/libuv.a $(DEPS_PREFIX)/lib/libssl.a:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 
 # Build for all architectures
 .PHONY: build-all
@@ -66,21 +75,21 @@ test: build
 	@# Run dig -v in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
-		alpine:$(ALPINE_VERSION) /dig -v 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /dig -v 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "dig" || \
 		(echo "ERROR: dig -v failed" && exit 1)
 	@echo "✓ dig -v works"
 	@# Run dig -h in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
-		alpine:$(ALPINE_VERSION) /dig -h 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /dig -h 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: dig -h failed" && exit 1)
 	@echo "✓ dig -h works"
 	@# Run a basic DNS query
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
-		alpine:$(ALPINE_VERSION) /dig @1.1.1.1 example.com A +short 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /dig @1.1.1.1 example.com A +short 2>&1) && \
 		echo "$$OUTPUT" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" || \
 		(echo "ERROR: dig DNS query failed" && exit 1)
 	@echo "✓ dig DNS query works"

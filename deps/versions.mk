@@ -38,4 +38,16 @@ LIBCAP_VERSION := 2.78
 LIBCAP_URL := https://git.kernel.org/pub/scm/libs/libcap/libcap.git/snapshot/libcap-$(LIBCAP_VERSION).tar.gz
 LIBCAP_SHA256 := 856e742e331bb53176231e1eae3588ab044e5564c811df3138bd2f1c7b953682
 
+LIBUV_VERSION := 1.49.2
+LIBUV_URL := https://dist.libuv.org/dist/v$(LIBUV_VERSION)/libuv-v$(LIBUV_VERSION).tar.gz
+LIBUV_SHA256 := 8c10706bd2cf129045c42b94799a92df9aaa75d05f07e99cf083507239bae5a8
+
+URCU_VERSION := 0.14.1
+URCU_URL := https://lttng.org/files/urcu/userspace-rcu-$(URCU_VERSION).tar.bz2
+URCU_SHA256 := 231acb13dc6ec023e836a0f0666f6aab47dc621ecb1d2cd9d9c22f922678abc0
+
+JEMALLOC_VERSION := 5.3.0
+JEMALLOC_URL := https://github.com/jemalloc/jemalloc/releases/download/$(JEMALLOC_VERSION)/jemalloc-$(JEMALLOC_VERSION).tar.bz2
+JEMALLOC_SHA256 := 2db82d1e7119df3e71b7640219b6dfe84789bc0537983c3b7ac4f7189aecfeaa
+
 PREFIX := /opt/st

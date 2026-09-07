@@ -51,6 +51,15 @@ $(DEPS_OUT_DIR)/$(ARCH)/lib/libssl.a: Dockerfile versions.mk
 		--build-arg LIBCAP_VERSION=$(LIBCAP_VERSION) \
 		--build-arg LIBCAP_URL=$(LIBCAP_URL) \
 		--build-arg LIBCAP_SHA256=$(LIBCAP_SHA256) \
+		--build-arg LIBUV_VERSION=$(LIBUV_VERSION) \
+		--build-arg LIBUV_URL=$(LIBUV_URL) \
+		--build-arg LIBUV_SHA256=$(LIBUV_SHA256) \
+		--build-arg URCU_VERSION=$(URCU_VERSION) \
+		--build-arg URCU_URL=$(URCU_URL) \
+		--build-arg URCU_SHA256=$(URCU_SHA256) \
+		--build-arg JEMALLOC_VERSION=$(JEMALLOC_VERSION) \
+		--build-arg JEMALLOC_URL=$(JEMALLOC_URL) \
+		--build-arg JEMALLOC_SHA256=$(JEMALLOC_SHA256) \
 		--output type=local,dest=$(DEPS_OUT_DIR)/$(ARCH) \
 		--target export \
 		.
