@@ -115,9 +115,8 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release
-          # Copy all binaries to release directory
-          find artifacts -type f \( -name "mtr-*" -o -name "drill-*" -o -name "dig-*" -o -name "curl-*" -o -name "wget-*" -o -name "iperf3-*" -o -name "tcpdump-*" -o -name "ncat-*" -o -name "openssl-*" -o -name "rsync-*" -o -name "SHA256SUMS-*.txt" \) -exec cp {} release/ \;
-          # Generate combined checksums
+          # Artifacts are named <tool>-<arch> (and SHA256SUMS-<arch>.txt)
+          find artifacts -type f \( -name "*-amd64" -o -name "*-arm64" -o -name "SHA256SUMS-*.txt" \) -exec cp {} release/ \;
           cd release
           cat SHA256SUMS-*.txt > SHA256SUMS.txt
           ls -la
@@ -141,33 +140,13 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            release/mtr-*
-            release/drill-*
-            release/dig-*
-            release/curl-*
-            release/wget-*
-            release/iperf3-*
-            release/tcpdump-*
-            release/ncat-*
-            release/openssl-*
-            release/rsync-*
-            release/SHA256SUMS.txt
+            release/*
           body: |
             ## Static Binaries
 
             This release includes statically compiled binaries with build provenance attestations.
 
-            ### Included Tools
-            - **mtr** (v0.95) - Network diagnostic tool combining ping and traceroute
-            - **drill** (v1.8.4) - DNS lookup utility from ldns - lightweight dig alternative
-            - **dig** (v9.16.50) - DNS lookup utility from BIND - full-featured DNS diagnostics
-            - **curl** (v8.11.1) - Command line URL transfer tool
-            - **wget** (v1.25.0) - Network file retriever
-            - **iperf3** (v3.18) - Network bandwidth measurement tool
-            - **tcpdump** (v4.99.6) - Packet analyzer
-            - **ncat** (v7.991) - nmap netcat with SSL
-            - **openssl** (v3.3.7) - Cryptography CLI
-            - **rsync** (v3.5.0) - File-copying tool
+            Artifacts are named `<tool>-<arch>` (for example `curl-amd64` and `curl-arm64`).
 
             ### Architectures
             - `amd64` (x86_64)
@@ -178,14 +157,7 @@ jobs:
             Verify build provenance using the [GitHub CLI](https://cli.github.com/):
 
             ```bash
-            # Verify mtr
-            gh attestation verify mtr-amd64 --repo ${{ github.repository }}
-
-            # Verify dig
-            gh attestation verify dig-amd64 --repo ${{ github.repository }}
-
-            # Verify drill
-            gh attestation verify drill-amd64 --repo ${{ github.repository }}
+            gh attestation verify curl-amd64 --repo ${{ github.repository }}
             ```
 
             ### Checksums

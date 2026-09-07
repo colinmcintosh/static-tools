@@ -6,8 +6,8 @@
 #   ./scripts/verify.sh <artifact> <provenance> [source-uri]
 #
 # Examples:
-#   ./scripts/verify.sh mtr-amd64 multiple.intoto.jsonl
-#   ./scripts/verify.sh mtr-arm64 multiple.intoto.jsonl github.com/colinmcintosh/static-tools
+#   ./scripts/verify.sh curl-amd64 multiple.intoto.jsonl
+#   ./scripts/verify.sh curl-arm64 multiple.intoto.jsonl github.com/colinmcintosh/static-tools
 #
 
 set -euo pipefail
@@ -35,8 +35,8 @@ usage() {
     echo "  source-uri   Source repository URI (default: ${DEFAULT_SOURCE_URI})"
     echo ""
     echo "Examples:"
-    echo "  $0 mtr-amd64 multiple.intoto.jsonl"
-    echo "  $0 ./dist/mtr-arm64 ./provenance.intoto.jsonl github.com/user/repo"
+    echo "  $0 curl-amd64 multiple.intoto.jsonl"
+    echo "  $0 ./dist/curl-arm64 ./provenance.intoto.jsonl github.com/user/repo"
     exit 1
 }
 

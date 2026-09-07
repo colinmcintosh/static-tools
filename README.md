@@ -16,18 +16,9 @@ SLSA 3+ provenance. For now that is left up to the user.
 
 ## Available Tools
 
-| Tool | Version | Description |
-|------|---------|-------------|
-| mtr | 0.95 | Network diagnostic combining ping and traceroute |
-| drill | 1.8.4 | DNS lookup utility (ldns) - lightweight dig alternative |
-| dig | 9.16.50 | DNS lookup utility from BIND - full-featured DNS diagnostics |
-| curl | 8.11.1 | Command line URL transfer tool |
-| wget | 1.25.0 | Network file retriever |
-| iperf3 | 3.18 | Network bandwidth measurement tool |
-| tcpdump | 4.99.6 | Packet analyzer |
-| ncat | 7.991 | nmap netcat with SSL |
-| openssl | 3.3.7 | Cryptography command-line tool |
-| rsync | 3.5.0 | Fast incremental file-copying tool |
+Each tool lives in `tools/<name>/` with its version pinned in `versions.mk`. Run `make list` to see what this checkout builds.
+
+Release artifacts are named `<tool>-<arch>` (for example `curl-amd64`).
 
 ## Supported Architectures
 
@@ -38,60 +29,12 @@ SLSA 3+ provenance. For now that is left up to the user.
 
 ### Download from Releases
 
-Download the latest binaries from the [Releases](https://github.com/colinmcintosh/static-tools/releases) page.
-
-For example:
+Download the latest binaries from the [Releases](https://github.com/colinmcintosh/static-tools/releases) page. Artifacts are named `<tool>-<arch>`.
 
 ```bash
-# Download mtr for your architecture
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/mtr-amd64
-chmod +x mtr-amd64
-mv mtr-amd64 mtr
-
-# Download dig for DNS lookups
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/dig-amd64
-chmod +x dig-amd64
-mv dig-amd64 dig
-
-# Or download drill (lightweight alternative)
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/drill-amd64
-chmod +x drill-amd64
-mv drill-amd64 drill
-
-# Download curl
 curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/curl-amd64
 chmod +x curl-amd64
 mv curl-amd64 curl
-
-# Download wget
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/wget-amd64
-chmod +x wget-amd64
-mv wget-amd64 wget
-
-# Download iperf3
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/iperf3-amd64
-chmod +x iperf3-amd64
-mv iperf3-amd64 iperf3
-
-# Download tcpdump
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/tcpdump-amd64
-chmod +x tcpdump-amd64
-mv tcpdump-amd64 tcpdump
-
-# Download ncat
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/ncat-amd64
-chmod +x ncat-amd64
-mv ncat-amd64 ncat
-
-# Download openssl
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/openssl-amd64
-chmod +x openssl-amd64
-mv openssl-amd64 openssl
-
-# Download rsync
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/rsync-amd64
-chmod +x rsync-amd64
-mv rsync-amd64 rsync
 ```
 
 ### Verify Provenance (Recommended)
@@ -105,17 +48,6 @@ go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
 # Download provenance
 curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/multiple.intoto.jsonl
 
-# Verify mtr
-slsa-verifier verify-artifact mtr-amd64 \
-  --provenance-path multiple.intoto.jsonl \
-  --source-uri github.com/colinmcintosh/static-tools
-
-# Verify dig
-slsa-verifier verify-artifact dig-amd64 \
-  --provenance-path multiple.intoto.jsonl \
-  --source-uri github.com/colinmcintosh/static-tools
-
-# Verify curl
 slsa-verifier verify-artifact curl-amd64 \
   --provenance-path multiple.intoto.jsonl \
   --source-uri github.com/colinmcintosh/static-tools
@@ -124,8 +56,6 @@ slsa-verifier verify-artifact curl-amd64 \
 Or use the included verification script:
 
 ```bash
-./scripts/verify.sh mtr-amd64 multiple.intoto.jsonl
-./scripts/verify.sh dig-amd64 multiple.intoto.jsonl
 ./scripts/verify.sh curl-amd64 multiple.intoto.jsonl
 ```
 
@@ -142,57 +72,25 @@ Or use the included verification script:
 # Build the shared static library prefix (openssl, zlib, nghttp2, ...)
 make deps
 
-# Build a specific tool for your current architecture
-make build-mtr
-make build-dig
-make build-drill
+# One tool for the host architecture (replace curl with any name from `make list`)
 make build-curl
-make build-wget
-make build-iperf3
-make build-tcpdump
-make build-ncat
-make build-openssl
-make build-rsync
 
-# Build all tools
+# All tools
 make build
 ```
 
 ### Build for All Architectures
 
 ```bash
-# Build a specific tool for amd64 and arm64
-make build-all-mtr
-make build-all-dig
-make build-all-drill
-make build-all-curl
-make build-all-wget
-make build-all-iperf3
-make build-all-tcpdump
-make build-all-ncat
-make build-all-openssl
-make build-all-rsync
-
-# Build all tools for all architectures
-make build-all
+make build-all-curl   # one tool, amd64 and arm64
+make build-all        # all tools, all architectures
 ```
 
 ### Test
 
 ```bash
-make test-mtr
-make test-dig
-make test-drill
-make test-curl
-make test-wget
-make test-iperf3
-make test-tcpdump
-make test-ncat
-make test-openssl
-make test-rsync
-
-# Test all tools
-make test
+make test-curl   # one tool
+make test        # all tools
 ```
 
 ### Other Commands
@@ -207,61 +105,21 @@ make clean    # Remove build artifacts
 
 ```
 static-tools/
-├── Makefile                    # Root build entry point
-├── deps/
-│   ├── Dockerfile              # SHA256-pinned static library prefix
+├── Makefile                    # Root build entry point (`TOOLS` list)
+├── deps/                       # Shared static library prefix
+│   ├── Dockerfile
 │   ├── Makefile
-│   └── versions.mk             # Library/toolchain tarball pins
+│   └── versions.mk
 ├── tools/
-│   ├── mtr/
-│   │   ├── Dockerfile          # Static build configuration
-│   │   ├── Makefile            # Tool-specific targets
-│   │   └── versions.mk         # Pinned versions and checksums
-│   ├── drill/
-│   │   ├── Dockerfile          # ldns-based DNS lookup tool
-│   │   ├── Makefile
-│   │   └── versions.mk
-│   ├── dig/
-│   │   ├── Dockerfile          # BIND-based DNS lookup tool
-│   │   ├── Makefile
-│   │   └── versions.mk
-│   ├── curl/
-│   │   ├── Dockerfile          # curl URL transfer tool
-│   │   ├── Makefile
-│   │   └── versions.mk
-│   ├── wget/
-│   │   ├── Dockerfile          # wget network file retriever
-│   │   ├── Makefile
-│   │   └── versions.mk
-│   ├── iperf3/
-│   │   ├── Dockerfile          # iperf3 bandwidth measurement tool
-│   │   ├── Makefile
-│   │   └── versions.mk
-│   ├── tcpdump/
-│   │   ├── Dockerfile          # Packet analyzer
-│   │   ├── Makefile
-│   │   └── versions.mk
-│   ├── ncat/
-│   │   ├── Dockerfile          # nmap ncat with SSL
-│   │   ├── Makefile
-│   │   └── versions.mk
-│   ├── openssl/
-│   │   ├── Dockerfile          # OpenSSL CLI from the shared prefix
-│   │   ├── Makefile
-│   │   └── versions.mk
-│   └── rsync/
-│       ├── Dockerfile          # rsync file-copying tool
+│   └── <name>/                 # One directory per tool; `curl/` is the reference
+│       ├── Dockerfile
 │       ├── Makefile
 │       └── versions.mk
-├── .github/
-│   ├── workflows/
-│   │   ├── ci.yml              # CI validation
-│   │   └── release.yml         # Release with SLSA provenance
-│   └── configs/
-│       ├── mtr-amd64.toml      # SLSA build config (amd64)
-│       └── mtr-arm64.toml      # SLSA build config (arm64)
+├── .github/workflows/
+│   ├── ci.yml
+│   └── release.yml
 └── scripts/
-    └── verify.sh               # Provenance verification helper
+    └── verify.sh
 ```
 
 ## Adding New Tools
@@ -358,14 +216,4 @@ Every release includes:
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-Individual tools retain their original licenses:
-- mtr: GPL-2.0
-- drill (ldns): BSD-3-Clause
-- dig (BIND): MPL-2.0
-- curl: curl (ISC-like / MIT-derived)
-- wget: GPL-3.0
-- iperf3: BSD-3-Clause
-- tcpdump: BSD-3-Clause
-- ncat (nmap): Nmap Public Source License
-- openssl: Apache-2.0
-- rsync: GPL-3.0
+Individual tools retain their upstream licenses. See the corresponding upstream project.
