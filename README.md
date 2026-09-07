@@ -24,6 +24,10 @@ SLSA 3+ provenance. For now that is left up to the user.
 | curl | 8.11.1 | Command line URL transfer tool |
 | wget | 1.25.0 | Network file retriever |
 | iperf3 | 3.18 | Network bandwidth measurement tool |
+| tcpdump | 4.99.6 | Packet analyzer |
+| ncat | 7.991 | nmap netcat with SSL |
+| openssl | 3.3.7 | Cryptography command-line tool |
+| rsync | 3.5.0 | Fast incremental file-copying tool |
 
 ## Supported Architectures
 
@@ -68,6 +72,26 @@ mv wget-amd64 wget
 curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/iperf3-amd64
 chmod +x iperf3-amd64
 mv iperf3-amd64 iperf3
+
+# Download tcpdump
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/tcpdump-amd64
+chmod +x tcpdump-amd64
+mv tcpdump-amd64 tcpdump
+
+# Download ncat
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/ncat-amd64
+chmod +x ncat-amd64
+mv ncat-amd64 ncat
+
+# Download openssl
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/openssl-amd64
+chmod +x openssl-amd64
+mv openssl-amd64 openssl
+
+# Download rsync
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/rsync-amd64
+chmod +x rsync-amd64
+mv rsync-amd64 rsync
 ```
 
 ### Verify Provenance (Recommended)
@@ -125,6 +149,10 @@ make build-drill
 make build-curl
 make build-wget
 make build-iperf3
+make build-tcpdump
+make build-ncat
+make build-openssl
+make build-rsync
 
 # Build all tools
 make build
@@ -140,6 +168,10 @@ make build-all-drill
 make build-all-curl
 make build-all-wget
 make build-all-iperf3
+make build-all-tcpdump
+make build-all-ncat
+make build-all-openssl
+make build-all-rsync
 
 # Build all tools for all architectures
 make build-all
@@ -154,6 +186,10 @@ make test-drill
 make test-curl
 make test-wget
 make test-iperf3
+make test-tcpdump
+make test-ncat
+make test-openssl
+make test-rsync
 
 # Test all tools
 make test
@@ -197,8 +233,24 @@ static-tools/
 │   │   ├── Dockerfile          # wget network file retriever
 │   │   ├── Makefile
 │   │   └── versions.mk
-│   └── iperf3/
-│       ├── Dockerfile          # iperf3 bandwidth measurement tool
+│   ├── iperf3/
+│   │   ├── Dockerfile          # iperf3 bandwidth measurement tool
+│   │   ├── Makefile
+│   │   └── versions.mk
+│   ├── tcpdump/
+│   │   ├── Dockerfile          # Packet analyzer
+│   │   ├── Makefile
+│   │   └── versions.mk
+│   ├── ncat/
+│   │   ├── Dockerfile          # nmap ncat with SSL
+│   │   ├── Makefile
+│   │   └── versions.mk
+│   ├── openssl/
+│   │   ├── Dockerfile          # OpenSSL CLI from the shared prefix
+│   │   ├── Makefile
+│   │   └── versions.mk
+│   └── rsync/
+│       ├── Dockerfile          # rsync file-copying tool
 │       ├── Makefile
 │       └── versions.mk
 ├── .github/
@@ -313,3 +365,7 @@ Individual tools retain their original licenses:
 - curl: curl (ISC-like / MIT-derived)
 - wget: GPL-3.0
 - iperf3: BSD-3-Clause
+- tcpdump: BSD-3-Clause
+- ncat (nmap): Nmap Public Source License
+- openssl: Apache-2.0
+- rsync: GPL-3.0
