@@ -1,56 +1,48 @@
 # syntax=docker/dockerfile:1.7
 
-# Build arguments
 ARG ALPINE_VERSION=3.21
 ARG ALPINE_DIGEST
 
-# Use Alpine with musl libc for fully static binaries
 FROM alpine:${ALPINE_VERSION}@${ALPINE_DIGEST} AS builder
 
-# Build arguments available in build stage
 ARG WGET_VERSION
 ARG WGET_SOURCE_SHA256
 ARG TARGETARCH
+ARG PREFIX=/opt/st
 
-# Install build dependencies
-# Using static versions of required libraries for static linking
+# Compiler only. OpenSSL and zlib come from the SHA256-pinned prefix.
 RUN apk add --no-cache \
-    build-base=0.5-r3 \
-    linux-headers=6.6-r1 \
-    perl=5.40.4-r0 \
-    openssl-dev=3.3.7-r0 \
-    openssl-libs-static=3.3.7-r0 \
-    zlib-dev=1.3.2-r0 \
-    zlib-static=1.3.2-r0
+    build-base=0.5-r3
 
-# Download and verify source
+COPY --from=deps / ${PREFIX}
+
+ENV PATH="${PREFIX}/bin:${PATH}" \
+    PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
+    CPPFLAGS="-I${PREFIX}/include" \
+    LDFLAGS="-L${PREFIX}/lib -static" \
+    CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+
 WORKDIR /src
 RUN wget -q "https://ftp.gnu.org/gnu/wget/wget-${WGET_VERSION}.tar.gz" -O wget.tar.gz && \
     echo "${WGET_SOURCE_SHA256}  wget.tar.gz" | sha256sum -c -
 
-# Extract and build wget
 RUN tar xzf wget.tar.gz && \
     cd wget-${WGET_VERSION} && \
-    # Configure for static build
-    CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
-    LDFLAGS="-static" \
     ./configure \
         --prefix=/usr \
         --with-ssl=openssl \
+        --with-libssl-prefix="${PREFIX}" \
+        --with-zlib="${PREFIX}" \
         --without-libidn \
         --disable-nls \
         --disable-pcre \
         --disable-iri && \
-    make -j"$(nproc)" && \
-    # Copy binary to output
+    make -j"$(nproc)" SUBDIRS="lib src" LDFLAGS="-L${PREFIX}/lib -static" && \
     mkdir -p /out && \
     cp src/wget /out/wget && \
     strip /out/wget && \
-    # Verify it's statically linked
     file /out/wget | grep -q "statically linked" && \
-    # Generate checksums
     cd /out && sha256sum * > SHA256SUMS
 
-# Export stage - minimal image with just the binaries
 FROM scratch AS export
 COPY --from=builder /out/ /

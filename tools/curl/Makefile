@@ -17,6 +17,7 @@ BUILDX ?= $(DOCKER) buildx
 # Output directory
 OUT_DIR ?= $(CURDIR)/../../dist
 TOOL_OUT_DIR := $(OUT_DIR)/curl
+DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
 
 # Image name for intermediate builds
 IMAGE_NAME := static-tools-curl-builder
@@ -29,13 +30,18 @@ PLATFORM_arm64 := linux/arm64
 ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
 ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
 
+.PHONY: deps
+deps:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
+
 .PHONY: build
 build: $(TOOL_OUT_DIR)/$(ARCH)/curl
 
-$(TOOL_OUT_DIR)/$(ARCH)/curl: Dockerfile versions.mk
+$(TOOL_OUT_DIR)/$(ARCH)/curl: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
+		--build-context deps=$(DEPS_PREFIX) \
 		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
 		--build-arg CURL_VERSION=$(CURL_VERSION) \
@@ -45,6 +51,9 @@ $(TOOL_OUT_DIR)/$(ARCH)/curl: Dockerfile versions.mk
 		.
 	@echo "Built curl $(CURL_VERSION) for $(ARCH):"
 	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
+
+$(DEPS_PREFIX)/lib/libssl.a:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 
 # Build for all architectures
 .PHONY: build-all
@@ -66,21 +75,21 @@ test: build
 	@# Run curl --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
-		alpine:$(ALPINE_VERSION) /curl --version 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /curl --version 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "curl" || \
 		(echo "ERROR: curl --version failed" && exit 1)
 	@echo "✓ curl --version works"
 	@# Run curl --help in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
-		alpine:$(ALPINE_VERSION) /curl --help 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /curl --help 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: curl --help failed" && exit 1)
 	@echo "✓ curl --help works"
 	@# Run a basic HTTP request
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
-		alpine:$(ALPINE_VERSION) /curl -s -o /dev/null -w "%{http_code}" https://example.com 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /curl -s -o /dev/null -w "%{http_code}" https://example.com 2>&1) && \
 		echo "$$OUTPUT" | grep -q "200" || \
 		(echo "ERROR: curl HTTP request failed" && exit 1)
 	@echo "✓ curl HTTP request works"

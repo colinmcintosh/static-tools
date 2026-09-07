@@ -14,3 +14,7 @@ ignored:
   # SC2035: Use ./*glob* or -- *glob* so names with dashes won't become options
   # The sha256sum command is safe with our controlled filenames
   - SC2035
+
+  # DL3022: COPY --from should reference a previously defined FROM alias
+  # The `deps` context is an additional build context (--build-context), not a stage
+  - DL3022

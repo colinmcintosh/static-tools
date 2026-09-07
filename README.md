@@ -115,6 +115,9 @@ Or use the included verification script:
 ### Build for Your Architecture
 
 ```bash
+# Build the shared static library prefix (openssl, zlib, nghttp2, ...)
+make deps
+
 # Build a specific tool for your current architecture
 make build-mtr
 make build-dig
@@ -169,6 +172,10 @@ make clean    # Remove build artifacts
 ```
 static-tools/
 ├── Makefile                    # Root build entry point
+├── deps/
+│   ├── Dockerfile              # SHA256-pinned static library prefix
+│   ├── Makefile
+│   └── versions.mk             # Library/toolchain tarball pins
 ├── tools/
 │   ├── mtr/
 │   │   ├── Dockerfile          # Static build configuration
@@ -220,11 +227,12 @@ To add a new tool (e.g., `dig`):
    DIG_SOURCE_SHA256 := <computed-hash>
    ```
 
-3. Create `tools/dig/Dockerfile` following the mtr pattern:
-   - Use Alpine with musl for static linking
-   - Pin base image by digest
-   - Verify source with `ADD --checksum`
+3. Create `tools/dig/Dockerfile` following the curl pattern:
+   - Use Alpine with musl for static linking, pinned by digest
+   - `COPY --from=deps` the shared static prefix (do not `apk add` C libraries)
+   - Verify source tarballs with SHA256
    - Compile with `-static` flags
+   - If the tool needs a new library, add it to `deps/` first
 
 4. Create `tools/dig/Makefile` with build targets
 
@@ -284,7 +292,8 @@ All dependencies are pinned for reproducibility:
 - **Base images**: Alpine pinned by SHA256 digest
 - **Source code**: Verified with SHA256 checksums
 - **GitHub Actions**: Pinned by commit SHA
-- **Build dependencies**: Pinned to specific Alpine package versions
+- **C libraries**: Built from upstream tarballs pinned by URL + SHA256 (`deps/versions.mk`)
+- **Compiler**: Alpine `build-base` / `linux-headers` on the digest-pinned base image (official `gcc` images are glibc/Debian-only)
 
 ### Verification
 

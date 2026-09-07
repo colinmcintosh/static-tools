@@ -17,6 +17,7 @@ BUILDX ?= $(DOCKER) buildx
 # Output directory
 OUT_DIR ?= $(CURDIR)/../../dist
 TOOL_OUT_DIR := $(OUT_DIR)/drill
+DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
 
 # Image name for intermediate builds
 IMAGE_NAME := static-tools-drill-builder
@@ -29,13 +30,18 @@ PLATFORM_arm64 := linux/arm64
 ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
 ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
 
+.PHONY: deps
+deps:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
+
 .PHONY: build
 build: $(TOOL_OUT_DIR)/$(ARCH)/drill
 
-$(TOOL_OUT_DIR)/$(ARCH)/drill: Dockerfile versions.mk
+$(TOOL_OUT_DIR)/$(ARCH)/drill: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
+		--build-context deps=$(DEPS_PREFIX) \
 		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
 		--build-arg LDNS_VERSION=$(LDNS_VERSION) \
@@ -45,6 +51,9 @@ $(TOOL_OUT_DIR)/$(ARCH)/drill: Dockerfile versions.mk
 		.
 	@echo "Built drill (from ldns $(LDNS_VERSION)) for $(ARCH):"
 	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
+
+$(DEPS_PREFIX)/lib/libssl.a:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 
 # Build for all architectures
 .PHONY: build-all
@@ -66,21 +75,21 @@ test: build
 	@# Run drill -v in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/drill:/drill:ro \
-		alpine:$(ALPINE_VERSION) /drill -v 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /drill -v 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "version" || \
 		(echo "ERROR: drill -v failed" && exit 1)
 	@echo "✓ drill -v works"
 	@# Run drill -h in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/drill:/drill:ro \
-		alpine:$(ALPINE_VERSION) /drill -h 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /drill -h 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "Usage" || \
 		(echo "ERROR: drill -h failed" && exit 1)
 	@echo "✓ drill -h works"
 	@# Run a basic DNS query
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/drill:/drill:ro \
-		alpine:$(ALPINE_VERSION) /drill @1.1.1.1 example.com A 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /drill @1.1.1.1 example.com A 2>&1) && \
 		echo "$$OUTPUT" | grep -q "ANSWER SECTION" || \
 		(echo "ERROR: drill DNS query failed" && exit 1)
 	@echo "✓ drill DNS query works"

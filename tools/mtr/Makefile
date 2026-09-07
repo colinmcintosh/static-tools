@@ -17,6 +17,7 @@ BUILDX ?= $(DOCKER) buildx
 # Output directory
 OUT_DIR ?= $(CURDIR)/../../dist
 TOOL_OUT_DIR := $(OUT_DIR)/mtr
+DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
 
 # Image name for intermediate builds
 IMAGE_NAME := static-tools-mtr-builder
@@ -29,13 +30,18 @@ PLATFORM_arm64 := linux/arm64
 ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
 ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
 
+.PHONY: deps
+deps:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
+
 .PHONY: build
 build: $(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet
 
-$(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet: Dockerfile versions.mk
+$(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libncursesw.a
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
+		--build-context deps=$(DEPS_PREFIX) \
 		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
 		--build-arg MTR_VERSION=$(MTR_VERSION) \
@@ -45,6 +51,9 @@ $(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet: Dockerfile versi
 		.
 	@echo "Built mtr $(MTR_VERSION) for $(ARCH):"
 	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
+
+$(DEPS_PREFIX)/lib/libncursesw.a $(DEPS_PREFIX)/lib/libssl.a:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 
 # Build for all architectures
 .PHONY: build-all
@@ -66,14 +75,14 @@ test: build
 	@# Run mtr --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/mtr:/mtr:ro \
-		alpine:$(ALPINE_VERSION) /mtr --version 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /mtr --version 2>&1) && \
 		echo "$$OUTPUT" | grep -q "mtr" || \
 		(echo "ERROR: mtr --version failed" && exit 1)
 	@echo "✓ mtr --version works"
 	@# Run mtr --help in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/mtr:/mtr:ro \
-		alpine:$(ALPINE_VERSION) /mtr --help 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /mtr --help 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage\|options\|hostname" || \
 		(echo "ERROR: mtr --help failed" && exit 1)
 	@echo "✓ mtr --help works"

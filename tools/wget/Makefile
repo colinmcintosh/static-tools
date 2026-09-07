@@ -17,6 +17,7 @@ BUILDX ?= $(DOCKER) buildx
 # Output directory
 OUT_DIR ?= $(CURDIR)/../../dist
 TOOL_OUT_DIR := $(OUT_DIR)/wget
+DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
 
 # Image name for intermediate builds
 IMAGE_NAME := static-tools-wget-builder
@@ -29,13 +30,18 @@ PLATFORM_arm64 := linux/arm64
 ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
 ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
 
+.PHONY: deps
+deps:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
+
 .PHONY: build
 build: $(TOOL_OUT_DIR)/$(ARCH)/wget
 
-$(TOOL_OUT_DIR)/$(ARCH)/wget: Dockerfile versions.mk
+$(TOOL_OUT_DIR)/$(ARCH)/wget: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
+		--build-context deps=$(DEPS_PREFIX) \
 		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
 		--build-arg WGET_VERSION=$(WGET_VERSION) \
@@ -45,6 +51,9 @@ $(TOOL_OUT_DIR)/$(ARCH)/wget: Dockerfile versions.mk
 		.
 	@echo "Built wget $(WGET_VERSION) for $(ARCH):"
 	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
+
+$(DEPS_PREFIX)/lib/libssl.a:
+	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 
 # Build for all architectures
 .PHONY: build-all
@@ -66,21 +75,21 @@ test: build
 	@# Run wget --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
-		alpine:$(ALPINE_VERSION) /wget --version 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /wget --version 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "wget" || \
 		(echo "ERROR: wget --version failed" && exit 1)
 	@echo "✓ wget --version works"
 	@# Run wget --help in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
-		alpine:$(ALPINE_VERSION) /wget --help 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /wget --help 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: wget --help failed" && exit 1)
 	@echo "✓ wget --help works"
 	@# Run a basic HTTP request
 	@$(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
-		alpine:$(ALPINE_VERSION) /wget -q --spider https://example.com && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /wget -q --spider https://example.com && \
 		echo "✓ wget HTTP request works" || \
 		(echo "ERROR: wget HTTP request failed" && exit 1)
 	@echo "==> All wget tests passed"
