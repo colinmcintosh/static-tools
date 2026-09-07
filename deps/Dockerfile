@@ -86,7 +86,7 @@ RUN wget -q "${OPENSSL_URL}" -O openssl.tar.gz && \
     esac && \
     ./Configure \
         --prefix="${PREFIX}" \
-        --openssldir="${PREFIX}/ssl" \
+        --openssldir=/etc/ssl \
         --libdir=lib \
         no-shared \
         no-tests \
