@@ -30,4 +30,12 @@ NGHTTP2_VERSION := 1.69.0
 NGHTTP2_URL := https://github.com/nghttp2/nghttp2/releases/download/v$(NGHTTP2_VERSION)/nghttp2-$(NGHTTP2_VERSION).tar.gz
 NGHTTP2_SHA256 := c866b7477cbb7512ab6863a685027adbb1bb8da8fc3bab7429ed43d3281d5aa9
 
+NCURSES_VERSION := 6.5
+NCURSES_URL := https://ftp.gnu.org/gnu/ncurses/ncurses-$(NCURSES_VERSION).tar.gz
+NCURSES_SHA256 := 136d91bc269a9a5785e5f9e980bc76ab57428f604ce3e5a5a90cebc767971cc6
+
+LIBCAP_VERSION := 2.78
+LIBCAP_URL := https://git.kernel.org/pub/scm/libs/libcap/libcap.git/snapshot/libcap-$(LIBCAP_VERSION).tar.gz
+LIBCAP_SHA256 := 856e742e331bb53176231e1eae3588ab044e5564c811df3138bd2f1c7b953682
+
 PREFIX := /opt/st

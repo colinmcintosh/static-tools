@@ -116,6 +116,41 @@ RUN wget -q "${NGHTTP2_URL}" -O nghttp2.tar.gz && \
     make install && \
     cd /src && rm -rf nghttp2.tar.gz nghttp2-${NGHTTP2_VERSION}
 
+# --- ncurses (wide-char static) ---
+ARG NCURSES_VERSION
+ARG NCURSES_URL
+ARG NCURSES_SHA256
+RUN wget -q "${NCURSES_URL}" -O ncurses.tar.gz && \
+    echo "${NCURSES_SHA256}  ncurses.tar.gz" | sha256sum -c - && \
+    tar xzf ncurses.tar.gz && \
+    cd ncurses-${NCURSES_VERSION} && \
+    ./configure \
+        --prefix="${PREFIX}" \
+        --without-shared \
+        --with-normal \
+        --without-debug \
+        --without-ada \
+        --without-cxx \
+        --without-cxx-binding \
+        --enable-widec \
+        --with-pkg-config-libdir="${PREFIX}/lib/pkgconfig" \
+        --enable-pc-files && \
+    make -j"$(nproc)" && \
+    make install && \
+    cd /src && rm -rf ncurses.tar.gz ncurses-${NCURSES_VERSION}
+
+# --- libcap ---
+ARG LIBCAP_VERSION
+ARG LIBCAP_URL
+ARG LIBCAP_SHA256
+RUN wget -q "${LIBCAP_URL}" -O libcap.tar.gz && \
+    echo "${LIBCAP_SHA256}  libcap.tar.gz" | sha256sum -c - && \
+    tar xzf libcap.tar.gz && \
+    cd libcap-${LIBCAP_VERSION} && \
+    make -C libcap prefix="${PREFIX}" lib=lib SHARED=no GOLANG=no && \
+    make -C libcap prefix="${PREFIX}" lib=lib SHARED=no GOLANG=no install && \
+    cd /src && rm -rf libcap.tar.gz libcap-${LIBCAP_VERSION}
+
 # Drop perl from the exported prefix; tools only need headers and static libs.
 RUN rm -rf \
         "${PREFIX}/bin/perl" \
@@ -127,7 +162,9 @@ RUN rm -rf \
     test -f "${PREFIX}/lib/libssl.a" && \
     test -f "${PREFIX}/lib/libcrypto.a" && \
     test -f "${PREFIX}/lib/libz.a" && \
-    test -f "${PREFIX}/lib/libnghttp2.a"
+    test -f "${PREFIX}/lib/libnghttp2.a" && \
+    test -f "${PREFIX}/lib/libncursesw.a" && \
+    test -f "${PREFIX}/lib/libcap.a"
 
 FROM scratch AS export
 COPY --from=builder /opt/st /

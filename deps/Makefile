@@ -45,6 +45,12 @@ $(DEPS_OUT_DIR)/$(ARCH)/lib/libssl.a: Dockerfile versions.mk
 		--build-arg NGHTTP2_VERSION=$(NGHTTP2_VERSION) \
 		--build-arg NGHTTP2_URL=$(NGHTTP2_URL) \
 		--build-arg NGHTTP2_SHA256=$(NGHTTP2_SHA256) \
+		--build-arg NCURSES_VERSION=$(NCURSES_VERSION) \
+		--build-arg NCURSES_URL=$(NCURSES_URL) \
+		--build-arg NCURSES_SHA256=$(NCURSES_SHA256) \
+		--build-arg LIBCAP_VERSION=$(LIBCAP_VERSION) \
+		--build-arg LIBCAP_URL=$(LIBCAP_URL) \
+		--build-arg LIBCAP_SHA256=$(LIBCAP_SHA256) \
 		--output type=local,dest=$(DEPS_OUT_DIR)/$(ARCH) \
 		--target export \
 		.
