@@ -49,11 +49,11 @@ $(TOOL_OUT_DIR)/$(ARCH)/wget: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \
 		.
+	@echo "Built wget $(WGET_VERSION) for $(ARCH):"
+	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
 
 $(DEPS_PREFIX)/lib/libssl.a:
 	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-	@echo "Built wget $(WGET_VERSION) for $(ARCH):"
-	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
 
 # Build for all architectures
 .PHONY: build-all

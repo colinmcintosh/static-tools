@@ -49,11 +49,11 @@ $(TOOL_OUT_DIR)/$(ARCH)/iperf3: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \
 		.
+	@echo "Built iperf3 $(IPERF3_VERSION) for $(ARCH):"
+	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
 
 $(DEPS_PREFIX)/lib/libssl.a:
 	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-	@echo "Built iperf3 $(IPERF3_VERSION) for $(ARCH):"
-	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
 
 # Build for all architectures
 .PHONY: build-all

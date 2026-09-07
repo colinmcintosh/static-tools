@@ -49,11 +49,11 @@ $(TOOL_OUT_DIR)/$(ARCH)/drill: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \
 		.
+	@echo "Built drill (from ldns $(LDNS_VERSION)) for $(ARCH):"
+	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
 
 $(DEPS_PREFIX)/lib/libssl.a:
 	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-	@echo "Built drill (from ldns $(LDNS_VERSION)) for $(ARCH):"
-	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
 
 # Build for all architectures
 .PHONY: build-all
