@@ -50,4 +50,21 @@ JEMALLOC_VERSION := 5.3.0
 JEMALLOC_URL := https://github.com/jemalloc/jemalloc/releases/download/$(JEMALLOC_VERSION)/jemalloc-$(JEMALLOC_VERSION).tar.bz2
 JEMALLOC_SHA256 := 2db82d1e7119df3e71b7640219b6dfe84789bc0537983c3b7ac4f7189aecfeaa
 
+LIBPCAP_VERSION := 1.10.7
+LIBPCAP_URL := https://www.tcpdump.org/release/libpcap-$(LIBPCAP_VERSION).tar.gz
+LIBPCAP_SHA256 := 0b394ac90dbc0a9838ff97468e05c9c9a3e873dec2514cd58db65d859d296e31
+
+XXHASH_VERSION := 0.8.3
+XXHASH_URL := https://github.com/Cyan4973/xxHash/archive/refs/tags/v$(XXHASH_VERSION).tar.gz
+XXHASH_SHA256 := aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80
+
+# 1.5.7 is the latest GitHub release; 1.6.0 is not published as a tarball.
+ZSTD_VERSION := 1.5.7
+ZSTD_URL := https://github.com/facebook/zstd/releases/download/v$(ZSTD_VERSION)/zstd-$(ZSTD_VERSION).tar.gz
+ZSTD_SHA256 := eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3
+
+LZ4_VERSION := 1.10.0
+LZ4_URL := https://github.com/lz4/lz4/releases/download/v$(LZ4_VERSION)/lz4-$(LZ4_VERSION).tar.gz
+LZ4_SHA256 := 537512904744b35e232912055ccf8ec66d768639ff3abe5788d90d792ec5f48b
+
 PREFIX := /opt/st

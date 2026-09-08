@@ -60,6 +60,18 @@ $(DEPS_OUT_DIR)/$(ARCH)/lib/libssl.a: Dockerfile versions.mk
 		--build-arg JEMALLOC_VERSION=$(JEMALLOC_VERSION) \
 		--build-arg JEMALLOC_URL=$(JEMALLOC_URL) \
 		--build-arg JEMALLOC_SHA256=$(JEMALLOC_SHA256) \
+		--build-arg LIBPCAP_VERSION=$(LIBPCAP_VERSION) \
+		--build-arg LIBPCAP_URL=$(LIBPCAP_URL) \
+		--build-arg LIBPCAP_SHA256=$(LIBPCAP_SHA256) \
+		--build-arg XXHASH_VERSION=$(XXHASH_VERSION) \
+		--build-arg XXHASH_URL=$(XXHASH_URL) \
+		--build-arg XXHASH_SHA256=$(XXHASH_SHA256) \
+		--build-arg ZSTD_VERSION=$(ZSTD_VERSION) \
+		--build-arg ZSTD_URL=$(ZSTD_URL) \
+		--build-arg ZSTD_SHA256=$(ZSTD_SHA256) \
+		--build-arg LZ4_VERSION=$(LZ4_VERSION) \
+		--build-arg LZ4_URL=$(LZ4_URL) \
+		--build-arg LZ4_SHA256=$(LZ4_SHA256) \
 		--output type=local,dest=$(DEPS_OUT_DIR)/$(ARCH) \
 		--target export \
 		.

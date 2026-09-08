@@ -24,7 +24,7 @@ BUILDX ?= $(DOCKER) buildx
 OUT_DIR := $(CURDIR)/dist
 
 # All tools
-TOOLS := mtr drill dig curl wget iperf3
+TOOLS := mtr drill dig curl wget iperf3 tcpdump ncat openssl rsync
 
 # Versioning Format: YYYY.MM.MINOR
 # YYYY = year, MM = zero-padded month, MINOR = release number within month
@@ -146,10 +146,10 @@ help:
 	@echo "Usage:"
 	@echo "  make deps           Build shared static library prefix for $(HOST_ARCH)"
 	@echo "  make build          Build all tools for host architecture ($(HOST_ARCH))"
-	@echo "  make build-mtr      Build specific tool for host architecture"
+	@echo "  make build-curl     Build a specific tool for host architecture"
 	@echo "  make build-all      Build all tools for all architectures (amd64, arm64)"
 	@echo "  make test           Run tests for all tools"
-	@echo "  make test-mtr       Run tests for specific tool"
+	@echo "  make test-curl      Run tests for a specific tool"
 	@echo "  make lint           Lint Dockerfiles with hadolint"
 	@echo "  make gittuf-install Install gittuf locally"
 	@echo "  make gittuf-verify  Verify source provenance with gittuf"

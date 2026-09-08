@@ -16,8 +16,10 @@ ARG PREFIX=/opt/st
 RUN apk add --no-cache \
     autoconf=2.72-r0 \
     automake=1.17-r0 \
+    bison=3.8.2-r1 \
     build-base=0.5-r3 \
     bzip2=1.0.8-r6 \
+    flex=2.6.4-r6 \
     libtool=2.4.7-r3 \
     linux-headers=6.6-r1
 
@@ -93,9 +95,11 @@ RUN wget -q "${OPENSSL_URL}" -O openssl.tar.gz && \
         --openssldir=/etc/ssl \
         --libdir=lib \
         no-shared \
+        no-dso \
         no-tests \
         no-docs \
         no-zlib \
+        -static \
         "${OPENSSL_TARGET}" && \
     make -j"$(nproc)" && \
     make install_sw && \
@@ -204,7 +208,65 @@ RUN wget -q "${JEMALLOC_URL}" -O jemalloc.tar.bz2 && \
     make install && \
     cd /src && rm -rf jemalloc.tar.bz2 jemalloc-${JEMALLOC_VERSION}
 
+# --- libpcap ---
+ARG LIBPCAP_VERSION
+ARG LIBPCAP_URL
+ARG LIBPCAP_SHA256
+RUN wget -q "${LIBPCAP_URL}" -O libpcap.tar.gz && \
+    echo "${LIBPCAP_SHA256}  libpcap.tar.gz" | sha256sum -c - && \
+    tar xzf libpcap.tar.gz && \
+    cd libpcap-${LIBPCAP_VERSION} && \
+    ./configure \
+        --prefix="${PREFIX}" \
+        --disable-shared \
+        --enable-static \
+        --disable-usb \
+        --disable-bluetooth \
+        --disable-dbus \
+        --disable-rdma \
+        --without-libnl && \
+    make -j"$(nproc)" && \
+    make install && \
+    cd /src && rm -rf libpcap.tar.gz libpcap-${LIBPCAP_VERSION}
+
+# --- xxhash ---
+ARG XXHASH_VERSION
+ARG XXHASH_URL
+ARG XXHASH_SHA256
+RUN wget -q "${XXHASH_URL}" -O xxhash.tar.gz && \
+    echo "${XXHASH_SHA256}  xxhash.tar.gz" | sha256sum -c - && \
+    tar xzf xxhash.tar.gz && \
+    cd xxHash-${XXHASH_VERSION} && \
+    make PREFIX="${PREFIX}" DISPATCH=0 libxxhash.a && \
+    make PREFIX="${PREFIX}" DISPATCH=0 install && \
+    rm -f "${PREFIX}/lib/libxxhash.so" "${PREFIX}/lib/libxxhash.so."* && \
+    cd /src && rm -rf xxhash.tar.gz xxHash-${XXHASH_VERSION}
+
+# --- zstd (library only) ---
+ARG ZSTD_VERSION
+ARG ZSTD_URL
+ARG ZSTD_SHA256
+RUN wget -q "${ZSTD_URL}" -O zstd.tar.gz && \
+    echo "${ZSTD_SHA256}  zstd.tar.gz" | sha256sum -c - && \
+    tar xzf zstd.tar.gz && \
+    cd zstd-${ZSTD_VERSION} && \
+    make -C lib PREFIX="${PREFIX}" BUILD_SHARED=0 install-static install-includes install-pc && \
+    cd /src && rm -rf zstd.tar.gz zstd-${ZSTD_VERSION}
+
+# --- lz4 (library only) ---
+ARG LZ4_VERSION
+ARG LZ4_URL
+ARG LZ4_SHA256
+RUN wget -q "${LZ4_URL}" -O lz4.tar.gz && \
+    echo "${LZ4_SHA256}  lz4.tar.gz" | sha256sum -c - && \
+    tar xzf lz4.tar.gz && \
+    cd lz4-${LZ4_VERSION} && \
+    make -C lib PREFIX="${PREFIX}" BUILD_SHARED=no install && \
+    rm -f "${PREFIX}/lib/liblz4.so" "${PREFIX}/lib/liblz4.so."* && \
+    cd /src && rm -rf lz4.tar.gz lz4-${LZ4_VERSION}
+
 # Drop perl from the exported prefix; tools only need headers and static libs.
+# Keep bin/openssl (static CLI) for tools/openssl.
 RUN rm -rf \
         "${PREFIX}/bin/perl" \
         "${PREFIX}/bin/perl${PERL_VERSION}" \
@@ -220,7 +282,12 @@ RUN rm -rf \
     test -f "${PREFIX}/lib/libcap.a" && \
     test -f "${PREFIX}/lib/libuv.a" && \
     test -f "${PREFIX}/lib/liburcu.a" && \
-    test -f "${PREFIX}/lib/libjemalloc.a"
+    test -f "${PREFIX}/lib/libjemalloc.a" && \
+    test -f "${PREFIX}/lib/libpcap.a" && \
+    test -f "${PREFIX}/lib/libxxhash.a" && \
+    test -f "${PREFIX}/lib/libzstd.a" && \
+    test -f "${PREFIX}/lib/liblz4.a" && \
+    test -x "${PREFIX}/bin/openssl"
 
 FROM scratch AS export
 COPY --from=builder /opt/st /
