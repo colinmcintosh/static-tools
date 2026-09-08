@@ -16,9 +16,20 @@ SLSA 3+ provenance. For now that is left up to the user.
 
 ## Available Tools
 
-Each tool lives in `tools/<name>/` with its version pinned in `versions.mk`. Run `make list` to see what this checkout builds.
+| Tool | Version | Description |
+|------|---------|-------------|
+| mtr | 0.95 | Network diagnostic combining ping and traceroute |
+| drill | 1.8.4 | DNS lookup utility (ldns) - lightweight dig alternative |
+| dig | 9.16.50 | DNS lookup utility from BIND - full-featured DNS diagnostics |
+| curl | 8.11.1 | Command line URL transfer tool |
+| wget | 1.25.0 | Network file retriever |
+| iperf3 | 3.18 | Network bandwidth measurement tool |
+| tcpdump | 4.99.6 | Packet analyzer |
+| ncat | 7.991 | nmap netcat with SSL |
+| openssl | 3.3.7 | Cryptography command-line tool |
+| rsync | 3.5.0 | Fast incremental file-copying tool |
 
-Release artifacts are named `<tool>-<arch>` (for example `curl-amd64`).
+Each tool lives in `tools/<name>/` with its version pinned in `versions.mk`. Release artifacts are named `<tool>-<arch>` (for example `curl-amd64`).
 
 ## Supported Architectures
 
