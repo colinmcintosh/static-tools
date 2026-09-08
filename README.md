@@ -28,6 +28,14 @@ SLSA 3+ provenance. For now that is left up to the user.
 | ncat | 7.991 | nmap netcat with SSL |
 | openssl | 3.3.7 | Cryptography command-line tool |
 | rsync | 3.5.0 | Fast incremental file-copying tool |
+| socat | 1.8.1.3 | Multipurpose relay (SOcket CAT) |
+| jq | 1.8.2 | Command-line JSON processor |
+| fping | 5.4 | Ping multiple hosts in parallel |
+| strace | 6.17 | System-call tracer |
+| ncdu | 1.22 | NCurses disk-usage analyzer |
+| file | 5.46 | File type identification (includes magic.mgc) |
+| xxd | 1.3.16 | Hex dump utility (tinyxxd) |
+| htop | 3.5.3 | Interactive process viewer |
 
 Each tool lives in `tools/<name>/` with its version pinned in `versions.mk`. Release artifacts are named `<tool>-<arch>` (for example `curl-amd64`).
 
