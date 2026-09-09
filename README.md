@@ -69,14 +69,21 @@ Verify the SLSA provenance before using binaries. Requires the [GitHub CLI](http
 ```bash
 gh attestation verify curl-amd64 \
   --repo colinmcintosh/static-tools \
-  --signer-workflow colinmcintosh/static-tools/.github/workflows/attest.yml
+  --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
+  --source-ref refs/tags/v2026.09.3 \
+  --deny-self-hosted-runners
 ```
 
 Or use the included wrapper (also requires `gh`; it does not bootstrap a verifier):
 
 ```bash
-./scripts/verify.sh curl-amd64
+./scripts/verify.sh v2026.09.3 curl-amd64
 ```
+
+Substitute the tag of the release you downloaded. Pinning the tag matters:
+`--cert-identity` binds both the signing workflow and the ref it ran from,
+while `--signer-workflow` matches only the workflow path and would accept an
+attestation produced from any branch.
 
 Then check checksums:
 

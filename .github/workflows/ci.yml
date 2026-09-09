@@ -35,13 +35,9 @@ jobs:
           SHA: ${{ github.sha }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          OWNER: ${{ github.repository_owner }}
+          KEY_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
-          echo "Importing GitHub web-flow and ${OWNER} signing keys..."
-          curl -fsSL https://github.com/web-flow.gpg | gpg --import
-          curl -fsSL "https://github.com/${OWNER}.gpg" | gpg --import
-
           if [ "${EVENT_NAME}" = "pull_request" ]; then
             RANGE="${PR_BASE}..${PR_HEAD}"
           elif [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
@@ -54,30 +50,7 @@ jobs:
             RANGE="${BEFORE}..${SHA}"
           fi
 
-          echo "Checking commit signatures in ${RANGE}..."
-          failed=0
-          while IFS=$'\t' read -r hash status; do
-            [ -z "${hash}" ] && continue
-            case "${status}" in
-              N)
-                echo "::error::Unsigned commit: ${hash}"
-                failed=1
-                ;;
-              B)
-                echo "::error::Bad signature: ${hash}"
-                failed=1
-                ;;
-              E)
-                echo "::error::Cannot check signature (missing key): ${hash}"
-                failed=1
-                ;;
-            esac
-          done < <(git log --format="%H%x09%G?" "${RANGE}")
-
-          if [ "${failed}" -ne 0 ]; then
-            exit 1
-          fi
-          echo "✓ Commit signatures verified for ${RANGE}"
+          scripts/verify-commit-signatures.sh "${RANGE}"
 
   changes:
     name: Detect changed tools
