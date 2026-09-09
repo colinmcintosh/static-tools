@@ -14,7 +14,7 @@ ARG PREFIX=/opt/st
 RUN apk add --no-cache \
     build-base=0.5-r3 \
     linux-headers=6.6-r1 \
-    xz=5.8.3-r0
+    xz=5.8.4-r0
 
 COPY --from=deps / ${PREFIX}
 
