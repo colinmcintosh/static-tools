@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: [mtr, drill, dig, curl, wget, iperf3, tcpdump, ncat, openssl, rsync]
+        tool: [mtr, drill, dig, curl, wget, iperf3, tcpdump, ncat, openssl, rsync, socat, jq, fping, strace, ncdu, file, xxd, htop]
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -73,6 +73,10 @@ jobs:
               mv "$file" "$file-${{ matrix.arch }}"
             done
             sha256sum mtr-${{ matrix.arch }} mtr-packet-${{ matrix.arch }} > SHA256SUMS-${{ matrix.arch }}.txt
+          elif [ "${{ matrix.tool }}" = "file" ]; then
+            mv file "file-${{ matrix.arch }}"
+            mv magic.mgc "magic.mgc-${{ matrix.arch }}"
+            sha256sum "file-${{ matrix.arch }}" "magic.mgc-${{ matrix.arch }}" > SHA256SUMS-${{ matrix.arch }}.txt
           else
             mv ${{ matrix.tool }} ${{ matrix.tool }}-${{ matrix.arch }}
             sha256sum ${{ matrix.tool }}-${{ matrix.arch }} > SHA256SUMS-${{ matrix.arch }}.txt

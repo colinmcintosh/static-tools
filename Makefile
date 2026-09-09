@@ -24,7 +24,7 @@ BUILDX ?= $(DOCKER) buildx
 OUT_DIR := $(CURDIR)/dist
 
 # All tools
-TOOLS := mtr drill dig curl wget iperf3 tcpdump ncat openssl rsync
+TOOLS := mtr drill dig curl wget iperf3 tcpdump ncat openssl rsync socat jq fping strace ncdu file xxd htop
 
 # Versioning Format: YYYY.MM.MINOR
 # YYYY = year, MM = zero-padded month, MINOR = release number within month

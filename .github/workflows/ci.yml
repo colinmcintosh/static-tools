@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: [mtr, dig, drill, curl, wget, iperf3, tcpdump, ncat, openssl, rsync]
+        tool: [mtr, dig, drill, curl, wget, iperf3, tcpdump, ncat, openssl, rsync, socat, jq, fping, strace, ncdu, file, xxd, htop]
         arch: [amd64, arm64]
         include:
           - arch: amd64
