@@ -10,9 +10,10 @@ ARG SOCAT_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
 
-# Compiler only. OpenSSL comes from the SHA256-pinned prefix.
+# Compiler + bzip2 for Debian's orig tarball. OpenSSL comes from the SHA256-pinned prefix.
 RUN apk add --no-cache \
     build-base=0.5-r3 \
+    bzip2=1.0.8-r6 \
     linux-headers=6.6-r1
 
 COPY --from=deps / ${PREFIX}
@@ -25,10 +26,10 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     LIBS="-lssl -lcrypto -lz -ldl -lpthread"
 
 WORKDIR /src
-RUN wget -q "http://www.dest-unreach.org/socat/download/socat-${SOCAT_VERSION}.tar.gz" -O socat.tar.gz && \
-    echo "${SOCAT_SOURCE_SHA256}  socat.tar.gz" | sha256sum -c -
+RUN wget -q "https://deb.debian.org/debian/pool/main/s/socat/socat_${SOCAT_VERSION}.orig.tar.bz2" -O socat.tar.bz2 && \
+    echo "${SOCAT_SOURCE_SHA256}  socat.tar.bz2" | sha256sum -c -
 
-RUN tar xzf socat.tar.gz && \
+RUN tar xjf socat.tar.bz2 && \
     cd socat-${SOCAT_VERSION} && \
     ./configure \
         --prefix=/usr \

@@ -26,7 +26,8 @@ WORKDIR /src
 RUN wget -q "https://astron.com/pub/file/file-${FILE_VERSION}.tar.gz" -O file.tar.gz && \
     echo "${FILE_SOURCE_SHA256}  file.tar.gz" | sha256sum -c -
 
-# magic.mgc is required at runtime; ship it next to the binary.
+# magic.mgc is required at runtime. libmagic does not search next to the binary;
+# consumers must pass -m magic.mgc-<arch> or set MAGIC=. Keep shipping magic.mgc.
 RUN tar xzf file.tar.gz && \
     cd file-${FILE_VERSION} && \
     ./configure \

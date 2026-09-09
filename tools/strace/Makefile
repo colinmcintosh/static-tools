@@ -9,24 +9,19 @@ DOCKER ?= docker
 BUILDX ?= $(DOCKER) buildx
 OUT_DIR ?= $(CURDIR)/../../dist
 TOOL_OUT_DIR := $(OUT_DIR)/strace
-DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
 PLATFORM_amd64 := linux/amd64
 PLATFORM_arm64 := linux/arm64
 ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
 ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
 
-.PHONY: deps build build-all test verify-static clean info
-
-deps:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
+.PHONY: build build-all test verify-static clean info
 
 build: $(TOOL_OUT_DIR)/$(ARCH)/strace
 
-$(TOOL_OUT_DIR)/$(ARCH)/strace: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
+$(TOOL_OUT_DIR)/$(ARCH)/strace: Dockerfile versions.mk
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
-		--build-context deps=$(DEPS_PREFIX) \
 		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
 		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
 		--build-arg STRACE_VERSION=$(STRACE_VERSION) \
@@ -36,9 +31,6 @@ $(TOOL_OUT_DIR)/$(ARCH)/strace: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl
 		.
 	@echo "Built strace $(STRACE_VERSION) for $(ARCH):"
 	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
-
-$(DEPS_PREFIX)/lib/libssl.a:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 
 build-all:
 	$(foreach arch,$(ARCHS),$(MAKE) build ARCH=$(arch);)

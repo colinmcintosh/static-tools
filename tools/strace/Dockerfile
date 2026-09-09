@@ -8,7 +8,6 @@ FROM alpine:${ALPINE_VERSION}@${ALPINE_DIGEST} AS builder
 ARG STRACE_VERSION
 ARG STRACE_SOURCE_SHA256
 ARG TARGETARCH
-ARG PREFIX=/opt/st
 
 # xz for the official release tarball. --enable-mpers=no is required for musl static.
 RUN apk add --no-cache \
@@ -16,13 +15,8 @@ RUN apk add --no-cache \
     linux-headers=6.6-r1 \
     xz=5.8.3-r0
 
-COPY --from=deps / ${PREFIX}
-
-ENV PATH="${PREFIX}/bin:${PATH}" \
-    PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
-    CPPFLAGS="-I${PREFIX}/include" \
-    LDFLAGS="-L${PREFIX}/lib -static" \
-    CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+ENV CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
+    LDFLAGS="-static"
 
 WORKDIR /src
 RUN wget -q "https://github.com/strace/strace/releases/download/v${STRACE_VERSION}/strace-${STRACE_VERSION}.tar.xz" -O strace.tar.xz && \
@@ -33,7 +27,7 @@ RUN tar xf strace.tar.xz && \
     ./configure \
         --prefix=/usr \
         --enable-mpers=no && \
-    make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static" && \
+    make -j"$(nproc)" LDFLAGS="-static" && \
     mkdir -p /out && \
     cp src/strace /out/strace && \
     strip /out/strace && \
