@@ -159,7 +159,11 @@ jobs:
 
       - name: Verify deps prefix
         run: |
+          # upload-artifact/download-artifact do not preserve execute bits
+          chmod +x dist/deps/${{ matrix.arch }}/bin/*
           test -f dist/deps/${{ matrix.arch }}/lib/libssl.a
+          test -x dist/deps/${{ matrix.arch }}/bin/pkg-config
+          test -x dist/deps/${{ matrix.arch }}/bin/openssl
 
       - name: Build ${{ matrix.tool }} for ${{ matrix.arch }}
         run: |
