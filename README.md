@@ -1,24 +1,20 @@
 # static-tools
 
-Statically compiled binaries for common Linux tools with verified SLSA Level 3 supply chain provenance.
+Statically compiled binaries for common Linux tools with SLSA v1.2 Build L3 provenance.
+
+See [docs/SLSA.md](docs/SLSA.md) for the claim, how it is achieved, and how to verify it.
 
 ## Overview
 
-This repository provides statically linked binaries that can run on any Linux system without dependencies. All builds are performed in containers with cryptographically signed provenance attestations, enabling verification of the complete build chain.
+This repository provides statically linked binaries that can run on any Linux system without dependencies. Release builds run in digest-pinned containers. Provenance is signed in an isolated reusable workflow so the build job cannot mint attestations.
 
-The provenance provided by this repository is intended to prove the supply chain between upstream
-source code (i.e. the source for the binary being built) and the binary used by an end user. You
-can be assured that the binaries provided by this repo are built in public view using legitimate
-and verified source code. This does not prove the supply chain for upstream source code.
-
-In the future this repository may classify binaries generated from source code which itself provides
-SLSA 3+ provenance. For now that is left up to the user.
+The provenance is intended to prove the supply chain between upstream source (the tarball being built) and the binary an end user downloads. It does not prove the supply chain of that upstream source.
 
 ## Available Tools
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| mtr | 0.95 | Network diagnostic combining ping and traceroute |
+| mtr | 0.95 | Network diagnostic combining ping and traceroute (includes `mtr-packet`) |
 | drill | 1.8.4 | DNS lookup utility (ldns) - lightweight dig alternative |
 | dig | 9.16.50 | DNS lookup utility from BIND - full-featured DNS diagnostics |
 | curl | 8.11.1 | Command line URL transfer tool |
@@ -33,11 +29,11 @@ SLSA 3+ provenance. For now that is left up to the user.
 | fping | 5.4 | Ping multiple hosts in parallel |
 | strace | 6.17 | System-call tracer |
 | ncdu | 1.22 | NCurses disk-usage analyzer |
-| file | 5.46 | File type identification (includes magic.mgc) |
+| file | 5.46 | File type identification (includes `magic.mgc`; use `file -m magic.mgc-<arch>` or `MAGIC=`) |
 | xxd | 1.3.16 | Hex dump utility (tinyxxd) |
 | htop | 3.5.3 | Interactive process viewer |
 
-Each tool lives in `tools/<name>/` with its version pinned in `versions.mk`. Release artifacts are named `<tool>-<arch>` (for example `curl-amd64`).
+Each tool lives in `tools/<name>/` with its version pinned in `versions.mk`. Release artifacts are named `<tool>-<arch>` (for example `curl-amd64`). `file` also ships `magic.mgc-<arch>`; `mtr` also ships `mtr-packet-<arch>`.
 
 ## Supported Architectures
 
@@ -56,26 +52,36 @@ chmod +x curl-amd64
 mv curl-amd64 curl
 ```
 
-### Verify Provenance (Recommended)
-
-Verify the SLSA provenance before using binaries:
+`file` does not search for magic next to the binary:
 
 ```bash
-# Install slsa-verifier
-go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
-
-# Download provenance
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/multiple.intoto.jsonl
-
-slsa-verifier verify-artifact curl-amd64 \
-  --provenance-path multiple.intoto.jsonl \
-  --source-uri github.com/colinmcintosh/static-tools
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/file-amd64
+curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/magic.mgc-amd64
+chmod +x file-amd64
+./file-amd64 -m magic.mgc-amd64 /path/to/something
+# or: MAGIC=/path/to/magic.mgc-amd64 ./file-amd64 /path/to/something
 ```
 
-Or use the included verification script:
+### Verify Provenance (Recommended)
+
+Verify the SLSA provenance before using binaries. Requires the [GitHub CLI](https://cli.github.com/):
 
 ```bash
-./scripts/verify.sh curl-amd64 multiple.intoto.jsonl
+gh attestation verify curl-amd64 \
+  --repo colinmcintosh/static-tools \
+  --signer-workflow colinmcintosh/static-tools/.github/workflows/attest.yml
+```
+
+Or use the included wrapper (also requires `gh`; it does not bootstrap a verifier):
+
+```bash
+./scripts/verify.sh curl-amd64
+```
+
+Then check checksums:
+
+```bash
+sha256sum -c SHA256SUMS.txt
 ```
 
 ## Building Locally
@@ -125,6 +131,7 @@ make clean    # Remove build artifacts
 ```
 static-tools/
 ├── Makefile                    # Root build entry point (`TOOLS` list)
+├── docs/SLSA.md                # Build L3 claim and verification
 ├── deps/                       # Shared static library prefix
 │   ├── Dockerfile
 │   ├── Makefile
@@ -136,7 +143,8 @@ static-tools/
 │       └── versions.mk
 ├── .github/workflows/
 │   ├── ci.yml
-│   └── release.yml
+│   ├── release.yml
+│   └── attest.yml            # Isolated provenance signing (workflow_call)
 └── scripts/
     └── verify.sh
 ```
@@ -158,7 +166,7 @@ To add a new tool (e.g., `dig`):
 
 3. Create `tools/dig/Dockerfile` following the curl pattern:
    - Use Alpine with musl for static linking, pinned by digest
-   - `COPY --from=deps` the shared static prefix (do not `apk add` C libraries)
+   - `COPY --from=deps` the shared static prefix (do not `apk add` C libraries) unless the tool does not link the prefix
    - Verify source tarballs with SHA256
    - Compile with `-static` flags
    - If the tool needs a new library, add it to `deps/` first
@@ -167,20 +175,18 @@ To add a new tool (e.g., `dig`):
 
 5. Add `dig` to the `TOOLS` list in the root `Makefile`
 
-6. Update the CI/release workflows matrix
+6. Update the CI/release workflow matrices, and bump the expected binary count in `release.yml` / `attest.yml` if you add extra artifacts (like `mtr-packet` or `magic.mgc`)
 
 ## Supply Chain Security
 
-### SLSA Level 3 Compliance
-
-This project achieves [SLSA Level 3](https://slsa.dev/spec/v1.0/levels) through:
+Details are in [docs/SLSA.md](docs/SLSA.md). Summary:
 
 | Requirement | Implementation |
 |-------------|----------------|
-| **Provenance generation** | slsa-github-generator |
+| **Provenance generation** | GitHub Artifact Attestations (`actions/attest`) |
 | **Signed provenance** | Sigstore (keyless signing via Fulcio) |
-| **Isolated builds** | GitHub Actions + container builds |
-| **Unforgeable provenance** | Reusable workflows with isolated signing |
+| **Isolated builds** | GitHub-hosted runners + container builds |
+| **Unforgeable provenance** | Reusable `attest.yml`; build job has no OIDC |
 
 ### Version Pinning
 
@@ -194,10 +200,7 @@ All dependencies are pinned for reproducibility:
 
 ### Verification
 
-Every release includes:
-
-- `SHA256SUMS.txt` - Checksums for all binaries
-- `multiple.intoto.jsonl` - SLSA provenance attestation
+Every release includes `SHA256SUMS.txt`. Provenance is stored as GitHub Artifact Attestations (not a `multiple.intoto.jsonl` release asset). Verify with `gh attestation verify` and `--signer-workflow` as above.
 
 ## License
 
