@@ -16,6 +16,9 @@ else
     $(error Unsupported architecture: $(UNAME_M))
 endif
 
+# Architecture for build-% / test-% (CI sets ARCH=; local defaults to host)
+ARCH ?= $(HOST_ARCH)
+
 # Docker configuration
 DOCKER ?= docker
 BUILDX ?= $(DOCKER) buildx
@@ -68,8 +71,8 @@ build: $(addprefix build-,$(TOOLS))
 # Build specific tool for host architecture
 .PHONY: build-%
 build-%:
-	@echo "==> Building $* for $(HOST_ARCH)"
-	$(MAKE) -C tools/$* build ARCH=$(HOST_ARCH) OUT_DIR=$(OUT_DIR)
+	@echo "==> Building $* for $(ARCH)"
+	$(MAKE) -C tools/$* build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 
 # Build all tools for all architectures (CI)
 .PHONY: build-all
@@ -87,20 +90,30 @@ test: $(addprefix test-,$(TOOLS))
 .PHONY: test-%
 test-%:
 	@echo "==> Testing $*"
-	$(MAKE) -C tools/$* test ARCH=$(HOST_ARCH)
+	$(MAKE) -C tools/$* test ARCH=$(ARCH)
+
+# Pinned hadolint v2.12.0 (SHA256 from GitHub release checksum files)
+HADOLINT_VERSION := 2.12.0
+HADOLINT_SHA256_amd64 := 56de6d5e5ec427e17b74fa48d51271c7fc0d61244bf5c90e828aab8362d55010
+HADOLINT_SHA256_arm64 := 5798551bf19f33951881f15eb238f90aef023f11e7ec7e9f4c37961cb87c5df6
 
 # Lint Dockerfiles and scripts
 .PHONY: lint
 lint:
 	@echo "==> Linting Dockerfiles"
-	@HADOLINT=$$(command -v hadolint 2>/dev/null || echo ""); \
-	if [ -z "$$HADOLINT" ] || [ ! -x "$$HADOLINT" ]; then \
-		echo "Installing hadolint..."; \
-		if [ "$(HOST_ARCH)" = "amd64" ]; then \
-			wget -qO /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64; \
-		else \
-			wget -qO /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-arm64; \
-		fi; \
+	@HADOLINT_SHA256="$(HADOLINT_SHA256_$(HOST_ARCH))"; \
+	if [ "$(HOST_ARCH)" = "amd64" ]; then \
+		HADOLINT_ASSET="hadolint-Linux-x86_64"; \
+	else \
+		HADOLINT_ASSET="hadolint-Linux-arm64"; \
+	fi; \
+	HADOLINT=$$(command -v hadolint 2>/dev/null || echo ""); \
+	if [ -n "$$HADOLINT" ] && [ -x "$$HADOLINT" ] && echo "$$HADOLINT_SHA256  $$HADOLINT" | sha256sum -c - >/dev/null 2>&1; then \
+		true; \
+	else \
+		echo "Installing hadolint v$(HADOLINT_VERSION)..."; \
+		wget -qO /tmp/hadolint "https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/$$HADOLINT_ASSET"; \
+		echo "$$HADOLINT_SHA256  /tmp/hadolint" | sha256sum -c -; \
 		chmod +x /tmp/hadolint; \
 		HADOLINT=/tmp/hadolint; \
 	fi; \
