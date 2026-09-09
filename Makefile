@@ -110,21 +110,6 @@ lint:
 	done
 	@echo "✓ Lint passed"
 
-# gittuf source provenance
-.PHONY: gittuf-install
-gittuf-install:
-	@echo "==> Installing gittuf"
-	./scripts/install-gittuf.sh
-
-.PHONY: gittuf-verify
-gittuf-verify:
-	@echo "==> Verifying source provenance"
-	@if git show-ref --quiet refs/gittuf/policy 2>/dev/null; then \
-		gittuf verify-ref --verbose main; \
-	else \
-		echo "gittuf not initialized - run 'gittuf setup' first"; \
-	fi
-
 # Clean build artifacts
 .PHONY: clean
 clean:
@@ -151,8 +136,6 @@ help:
 	@echo "  make test           Run tests for all tools"
 	@echo "  make test-curl      Run tests for a specific tool"
 	@echo "  make lint           Lint Dockerfiles with hadolint"
-	@echo "  make gittuf-install Install gittuf locally"
-	@echo "  make gittuf-verify  Verify source provenance with gittuf"
 	@echo "  make clean          Remove build artifacts"
 	@echo "  make list           List available tools"
 	@echo "  make help           Show this help message"
