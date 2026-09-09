@@ -4,6 +4,6 @@
 include ../../deps/versions.mk
 
 # ldns source (provides drill, a dig-like DNS tool)
-LDNS_VERSION := 1.8.4
+LDNS_VERSION := 1.9.2
 LDNS_SOURCE_URL := https://nlnetlabs.nl/downloads/ldns/ldns-$(LDNS_VERSION).tar.gz
-LDNS_SOURCE_SHA256 := 838b907594baaff1cd767e95466a7745998ae64bc74be038dccc62e2de2e4247
+LDNS_SOURCE_SHA256 := b524fa21994b6e834200ceb8c27f1b84bda5982fe35706f058196c079db94d5d

@@ -15,7 +15,7 @@ The provenance is intended to prove the supply chain between upstream source (th
 | Tool | Version | Description |
 |------|---------|-------------|
 | mtr | 0.95 | Network diagnostic combining ping and traceroute (includes `mtr-packet`) |
-| drill | 1.8.4 | DNS lookup utility (ldns) - lightweight dig alternative |
+| drill | 1.9.2 | DNS lookup utility (ldns) - lightweight dig alternative |
 | dig | 9.16.50 | DNS lookup utility from BIND - full-featured DNS diagnostics |
 | curl | 8.11.1 | Command line URL transfer tool |
 | wget | 1.25.0 | Network file retriever |
