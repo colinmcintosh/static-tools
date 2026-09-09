@@ -2,17 +2,14 @@
 # Print a JSON array of tools whose binaries may have changed between two commits.
 # Rebuild everything when the shared deps prefix changes, or when the base
 # commit is missing (new branch / shallow clone).
+# Use --all to force every tool (CI label ci:build-all).
 set -euo pipefail
 
 usage() {
   echo "Usage: $0 <base-sha> <head-sha>" >&2
+  echo "       $0 --all" >&2
   exit 2
 }
-
-[[ $# -eq 2 ]] || usage
-
-base=$1
-head=$2
 
 list_all_tools() {
   local d
@@ -28,6 +25,18 @@ json_array() {
 
 all_tools=()
 mapfile -t all_tools < <(list_all_tools)
+
+if [[ "${1:-}" == "--all" ]]; then
+  [[ $# -eq 1 ]] || usage
+  echo "Forced full tool matrix" >&2
+  json_array "${all_tools[@]}"
+  exit 0
+fi
+
+[[ $# -eq 2 ]] || usage
+
+base=$1
+head=$2
 
 if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
   echo "No base commit; building all tools" >&2
