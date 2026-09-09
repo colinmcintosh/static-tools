@@ -8,18 +8,12 @@ FROM alpine:${ALPINE_VERSION}@${ALPINE_DIGEST} AS builder
 ARG JQ_VERSION
 ARG JQ_SOURCE_SHA256
 ARG TARGETARCH
-ARG PREFIX=/opt/st
 
 RUN apk add --no-cache \
     build-base=0.5-r3
 
-COPY --from=deps / ${PREFIX}
-
-ENV PATH="${PREFIX}/bin:${PATH}" \
-    PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
-    CPPFLAGS="-I${PREFIX}/include" \
-    LDFLAGS="-L${PREFIX}/lib -static" \
-    CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+ENV CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
+    LDFLAGS="-static"
 
 WORKDIR /src
 RUN wget -q "https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-${JQ_VERSION}.tar.gz" -O jq.tar.gz && \
@@ -35,7 +29,7 @@ RUN tar xzf jq.tar.gz && \
         --disable-maintainer-mode \
         --with-oniguruma=builtin && \
     make -j"$(nproc)" \
-        LDFLAGS="-L${PREFIX}/lib -static -all-static" \
+        LDFLAGS="-static -all-static" \
         jq_LDFLAGS="-static -all-static" && \
     mkdir -p /out && \
     cp jq /out/jq && \

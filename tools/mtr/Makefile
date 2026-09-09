@@ -60,32 +60,52 @@ $(DEPS_PREFIX)/lib/libncursesw.a $(DEPS_PREFIX)/lib/libssl.a:
 build-all:
 	$(foreach arch,$(ARCHS),$(MAKE) build ARCH=$(arch);)
 
-# Test the binary
+# Test the binaries
 .PHONY: test
 test: build
 	@echo "==> Testing mtr binary for $(ARCH)"
-	@# Check if binary exists
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/mtr || \
 		(echo "ERROR: mtr binary not found or not executable" && exit 1)
 	@echo "✓ mtr binary exists"
-	@# Check static linking
 	@file $(TOOL_OUT_DIR)/$(ARCH)/mtr | grep -q "statically linked" || \
 		(echo "ERROR: Binary is not statically linked" && exit 1)
 	@echo "✓ mtr binary is statically linked"
-	@# Run mtr --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/mtr:/mtr:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /mtr --version 2>&1) && \
 		echo "$$OUTPUT" | grep -q "mtr" || \
 		(echo "ERROR: mtr --version failed" && exit 1)
 	@echo "✓ mtr --version works"
-	@# Run mtr --help in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/mtr:/mtr:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /mtr --help 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage\|options\|hostname" || \
 		(echo "ERROR: mtr --help failed" && exit 1)
 	@echo "✓ mtr --help works"
+	@echo "==> Testing mtr-packet binary for $(ARCH)"
+	@test -x $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet || \
+		(echo "ERROR: mtr-packet binary not found or not executable" && exit 1)
+	@echo "✓ mtr-packet binary exists"
+	@file $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet | grep -q "statically linked" || \
+		(echo "ERROR: mtr-packet is not statically linked" && exit 1)
+	@echo "✓ mtr-packet binary is statically linked"
+	@# mtr-packet is a stdin protocol helper (no --version/--help flags).
+	@# --version equivalent: check-support feature version
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet:/mtr-packet:ro \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
+		/bin/sh -c 'printf "1 check-support feature version\n" | /mtr-packet' 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "version\|feature-support\|support" || \
+		(echo "ERROR: mtr-packet version check failed: $$OUTPUT" && exit 1)
+	@echo "✓ mtr-packet --version works"
+	@# --help equivalent: check-support for a documented command
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet:/mtr-packet:ro \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
+		/bin/sh -c 'printf "1 check-support feature send-probe\n" | /mtr-packet' 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "support\|feature\|send-probe" || \
+		(echo "ERROR: mtr-packet --help failed: $$OUTPUT" && exit 1)
+	@echo "✓ mtr-packet --help works"
 	@echo "==> All mtr tests passed"
 
 # Clean build artifacts

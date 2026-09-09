@@ -22,7 +22,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include" \
     LDFLAGS="-L${PREFIX}/lib -static" \
-    CFLAGS="-static -Os -fstack-protector-strong"
+    CFLAGS="-static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 RUN wget -q "https://downloads.isc.org/isc/bind9/${BIND9_VERSION}/bind-${BIND9_VERSION}.tar.xz" -O bind.tar.xz && \

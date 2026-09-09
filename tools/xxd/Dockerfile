@@ -8,15 +8,11 @@ FROM alpine:${ALPINE_VERSION}@${ALPINE_DIGEST} AS builder
 ARG XXD_VERSION
 ARG XXD_SOURCE_SHA256
 ARG TARGETARCH
-ARG PREFIX=/opt/st
 
 RUN apk add --no-cache \
     build-base=0.5-r3
 
-COPY --from=deps / ${PREFIX}
-
-ENV PATH="${PREFIX}/bin:${PATH}" \
-    CFLAGS="-static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
+ENV CFLAGS="-static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static"
 
 WORKDIR /src

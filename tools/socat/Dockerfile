@@ -25,7 +25,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     LIBS="-lssl -lcrypto -lz -ldl -lpthread"
 
 WORKDIR /src
-RUN wget -q "http://www.dest-unreach.org/socat/download/socat-${SOCAT_VERSION}.tar.gz" -O socat.tar.gz && \
+RUN wget -q "https://www.dest-unreach.org/socat/download/socat-${SOCAT_VERSION}.tar.gz" -O socat.tar.gz && \
     echo "${SOCAT_SOURCE_SHA256}  socat.tar.gz" | sha256sum -c -
 
 RUN tar xzf socat.tar.gz && \
