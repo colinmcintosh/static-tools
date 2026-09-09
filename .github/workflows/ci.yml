@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 jobs:
-  # Verify all commits are signed
+  # Verify commits in the push/PR range are signed
   verify-signatures:
     name: Verify commit signatures
     runs-on: ubuntu-24.04
@@ -28,16 +28,56 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check all commits are signed
+      - name: Check commit signatures in range
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          OWNER: ${{ github.repository_owner }}
         run: |
-          echo "Checking commit signatures..."
-          UNSIGNED_COMMITS=$(git log --format="%H %G? %s" | grep " N " || true)
-          if [ -n "$UNSIGNED_COMMITS" ]; then
-            echo "::error::Found unsigned commits:"
-            echo "$UNSIGNED_COMMITS"
+          set -euo pipefail
+          echo "Importing GitHub web-flow and ${OWNER} signing keys..."
+          curl -fsSL https://github.com/web-flow.gpg | gpg --import
+          curl -fsSL "https://github.com/${OWNER}.gpg" | gpg --import
+
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            RANGE="${PR_BASE}..${PR_HEAD}"
+          elif [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
+            if git rev-parse --verify --quiet origin/main; then
+              RANGE="origin/main..${SHA}"
+            else
+              RANGE="${SHA}^!"
+            fi
+          else
+            RANGE="${BEFORE}..${SHA}"
+          fi
+
+          echo "Checking commit signatures in ${RANGE}..."
+          failed=0
+          while IFS=$'\t' read -r hash status; do
+            [ -z "${hash}" ] && continue
+            case "${status}" in
+              N)
+                echo "::error::Unsigned commit: ${hash}"
+                failed=1
+                ;;
+              B)
+                echo "::error::Bad signature: ${hash}"
+                failed=1
+                ;;
+              E)
+                echo "::error::Cannot check signature (missing key): ${hash}"
+                failed=1
+                ;;
+            esac
+          done < <(git log --format="%H%x09%G?" "${RANGE}")
+
+          if [ "${failed}" -ne 0 ]; then
             exit 1
           fi
-          echo "✓ All commits are signed"
+          echo "✓ Commit signatures verified for ${RANGE}"
 
   changes:
     name: Detect changed tools
@@ -191,7 +231,11 @@ jobs:
 
       - name: Install hadolint
         run: |
+          set -euo pipefail
+          # v2.12.0 Linux x86_64 SHA256 from https://github.com/hadolint/hadolint/releases/tag/v2.12.0
+          HADOLINT_SHA256="56de6d5e5ec427e17b74fa48d51271c7fc0d61244bf5c90e828aab8362d55010"
           wget -qO /usr/local/bin/hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          echo "${HADOLINT_SHA256}  /usr/local/bin/hadolint" | sha256sum -c -
           chmod +x /usr/local/bin/hadolint
 
       - name: Lint Dockerfiles
