@@ -34,14 +34,52 @@ jobs:
           fi
           echo "✓ All commits are signed"
 
+  changes:
+    name: Detect changed tools
+    runs-on: ubuntu-24.04
+    outputs:
+      tools: ${{ steps.detect.outputs.tools }}
+      any: ${{ steps.detect.outputs.any }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Detect tools to build
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            BASE="${PR_BASE}"
+          else
+            BASE="${BEFORE}"
+          fi
+          if [ -n "${BASE}" ] && ! [[ "${BASE}" =~ ^0+$ ]] && ! git cat-file -e "${BASE}^{commit}"; then
+            git fetch --no-tags origin "${BASE}"
+          fi
+          TOOLS="$(scripts/ci-changed-tools.sh "${BASE}" "${SHA}")"
+          echo "tools=${TOOLS}" >> "${GITHUB_OUTPUT}"
+          if [ "${TOOLS}" = "[]" ]; then
+            echo "any=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "any=true" >> "${GITHUB_OUTPUT}"
+          fi
+
   build:
     name: Build ${{ matrix.tool }}-${{ matrix.arch }}
-    needs: [verify-signatures]
+    needs: [verify-signatures, changes]
+    if: ${{ needs.changes.outputs.any == 'true' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        tool: [mtr, dig, drill, curl, wget, iperf3, tcpdump, ncat, openssl, rsync, socat, jq, fping, strace, ncdu, file, xxd, htop]
+        tool: ${{ fromJSON(needs.changes.outputs.tools) }}
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -86,3 +124,25 @@ jobs:
 
       - name: Lint Dockerfiles
         run: make lint
+
+  # Stable required check. Matrix job names expand (Build curl-amd64, …),
+  # so a ruleset cannot require the unexpanded template name.
+  ci:
+    name: CI
+    if: ${{ always() && !cancelled() }}
+    needs: [verify-signatures, changes, build, lint]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check required jobs succeeded
+        if: >-
+          ${{
+            needs.verify-signatures.result != 'success'
+            || needs.changes.result != 'success'
+            || needs.lint.result != 'success'
+            || (needs.changes.outputs.any == 'true' && needs.build.result != 'success')
+            || needs.build.result == 'failure'
+            || needs.build.result == 'cancelled'
+          }}
+        run: |
+          echo '${{ toJSON(needs) }}'
+          exit 1
