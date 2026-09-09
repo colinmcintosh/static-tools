@@ -28,9 +28,45 @@ env:
   ALPINE_DIGEST_ARM64: "sha256:fac2338de28c1143c0e69b48ba2d9b50481d5f1542b46c4656e5d6912d2d963a"
 
 jobs:
+  # Shared static prefix, built once per architecture in this run.
+  # Do not restore a cross-run cache here; release provenance stays hermetic.
+  deps:
+    name: Deps ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Build deps prefix
+        run: |
+          make -C deps build ARCH=${{ matrix.arch }} OUT_DIR="${GITHUB_WORKSPACE}/dist"
+
+      - name: Upload deps prefix
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: deps-prefix-${{ matrix.arch }}
+          path: dist/deps/${{ matrix.arch }}/
+          if-no-files-found: error
+          retention-days: 1
+
   # Build job - runs on native runners for each architecture
   build:
     name: Build ${{ matrix.tool }}-${{ matrix.arch }}
+    needs: [deps]
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -55,6 +91,20 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Download deps prefix
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: deps-prefix-${{ matrix.arch }}
+          path: dist/deps/${{ matrix.arch }}
+
+      - name: Verify deps prefix
+        run: |
+          # upload-artifact/download-artifact do not preserve execute bits
+          chmod +x dist/deps/${{ matrix.arch }}/bin/*
+          test -f dist/deps/${{ matrix.arch }}/lib/libssl.a
+          test -x dist/deps/${{ matrix.arch }}/bin/pkg-config
+          test -x dist/deps/${{ matrix.arch }}/bin/openssl
 
       - name: Build ${{ matrix.tool }} for ${{ matrix.arch }}
         run: |
@@ -120,7 +170,7 @@ jobs:
         run: |
           mkdir -p release
           # Artifacts are named <tool>-<arch> (and SHA256SUMS-<arch>.txt)
-          find artifacts -type f \( -name "*-amd64" -o -name "*-arm64" -o -name "SHA256SUMS-*.txt" \) -exec cp {} release/ \;
+          find artifacts -type f \( -name "*-amd64" -o -name "*-arm64" -o -name "SHA256SUMS-*.txt" \) ! -path 'artifacts/deps-prefix-*/*' -exec cp {} release/ \;
           cd release
           cat SHA256SUMS-*.txt > SHA256SUMS.txt
           ls -la
