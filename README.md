@@ -91,6 +91,79 @@ Then check checksums:
 sha256sum -c SHA256SUMS.txt
 ```
 
+### One-liner
+
+**Warning:** These are dangerous. They download, check, and then **rename files into the current directory** (`curl`, `wget`, `openssl`, `file`, `magic.mgc`, and the rest). That can overwrite or alter files already there — including tools on your `PATH` if you run it in a system directory such as `/usr/local/bin`. Use an empty directory you control.
+
+The parentheses `( ... )` start a subshell so `set -eu` cannot leak into your interactive shell. `file` still needs `./file -m magic.mgc`.
+
+#### With GitHub CLI
+
+Requires the [GitHub CLI](https://cli.github.com/). Checks `SHA256SUMS.txt` and verifies SLSA provenance (signer workflow, release tag, GitHub-hosted runners).
+
+```bash
+(
+  set -eu
+  a=$(uname -m)
+  case $a in
+    x86_64) a=amd64 ;;
+    aarch64) a=arm64 ;;
+    *) echo "unsupported: $a" >&2; exit 1 ;;
+  esac
+  t=$(gh release view -R colinmcintosh/static-tools --json tagName -q .tagName)
+  gh release download -R colinmcintosh/static-tools --clobber -p "*-$a" -p SHA256SUMS.txt
+  sha256sum -c --ignore-missing SHA256SUMS.txt
+  printf '%s\0' *-"$a" | xargs -0 -P"$(nproc)" -I{} bash -c '
+    f=$1 t=$2
+    if gh attestation verify "$f" \
+         --repo colinmcintosh/static-tools \
+         --cert-identity "https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/$t" \
+         --source-ref "refs/tags/$t" \
+         --deny-self-hosted-runners >/dev/null 2>&1; then
+      printf "%s: VERIFIED\n" "$f"
+    else
+      printf "%s: FAILED\n" "$f" >&2
+      exit 1
+    fi
+  ' _ {} "$t"
+  for f in *-"$a"; do
+    d=${f%-$a}
+    mv "$f" "$d"
+    [ "$d" = magic.mgc ] || chmod +x "$d"
+  done
+)
+```
+
+#### You-trust-me one-liner
+
+No `gh`. This only downloads the latest release assets for your architecture and checks them against the `SHA256SUMS.txt` published in that same release. It does **not** verify attestations, so it cannot tell you that the binaries were built by `.github/workflows/attest.yml` on the release tag, or that the sums file itself is authentic. Matching checksums only means the bits match whatever GitHub is serving. You are trusting the release assets.
+
+```bash
+(
+  set -euo pipefail
+  a=$(uname -m)
+  case $a in
+    x86_64) a=amd64 ;;
+    aarch64) a=arm64 ;;
+    *) echo "unsupported: $a" >&2; exit 1 ;;
+  esac
+  base=https://github.com/colinmcintosh/static-tools/releases/latest/download
+  curl -fsSL -o SHA256SUMS.txt "$base/SHA256SUMS.txt"
+  mapfile -t lines < <(grep -- "-$a$" SHA256SUMS.txt)
+  ((${#lines[@]})) || { echo "no artifacts for $a" >&2; exit 1; }
+  for line in "${lines[@]}"; do
+    f=${line##* }
+    curl -fsSL -o "$f" "$base/$f"
+  done
+  printf '%s\n' "${lines[@]}" | sha256sum -c -
+  for f in *-"$a"; do
+    d=${f%-$a}
+    mv "$f" "$d"
+    [ "$d" = magic.mgc ] || chmod +x "$d"
+  done
+)
+```
+
 ## Building Locally
 
 ### Prerequisites
