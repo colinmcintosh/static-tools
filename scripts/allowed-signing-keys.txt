@@ -1,0 +1,19 @@
+# Allowed commit-signing key fingerprints (40 hex chars, no spaces).
+# The signature gate imports keys from GitHub so git can verify the
+# cryptographic signature; this file is the trust anchor. Adding a key
+# here is a reviewed change. A key advertised on an account but missing
+# from this list is rejected.
+#
+# GitHub web-flow (current). Signs squash/merge commits created in the UI.
+968479A1AFF927E37D1A566BB5690EEEBB952194
+#
+# GitHub web-flow (historical; expired 2024-01-16). Kept so an old
+# fingerprint is recognized; signatures from an expired key still fail
+# the status-code check (Y).
+5DE3E0509C47EA3CF04A42D34AEE18F83AFDEB23
+#
+# Colin McIntosh <colin@colinmcintosh.com> primary [C]
+86777BE82F3B43456B862837B0BD806E5D45F2FF
+#
+# Colin McIntosh signing subkey [SE] — the key git reports as %GF
+A4B4FDDC55108DD6AF1A88E125C4F1CA7EE971E0

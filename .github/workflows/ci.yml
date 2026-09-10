@@ -104,7 +104,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
-      actions: write
     strategy:
       fail-fast: false
       matrix:
@@ -213,6 +212,12 @@ jobs:
 
       - name: Lint Dockerfiles
         run: make lint
+
+      - name: Test change detection
+        run: scripts/ci-changed-tools-test.sh
+
+      - name: Test commit signature gate
+        run: scripts/verify-commit-signatures-test.sh
 
   # Stable required check. Matrix job names expand (Build curl-amd64, …),
   # so a ruleset cannot require the unexpanded template name.

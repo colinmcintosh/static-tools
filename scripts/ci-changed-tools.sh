@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Print a JSON array of tools whose binaries may have changed between two commits.
-# Rebuild everything when the shared deps prefix changes, or when the base
-# commit is missing (new branch / shallow clone).
-# Use --all to force every tool (CI label ci:build-all).
+# Rebuild everything when shared deps or build infrastructure changes, or when
+# the base commit is missing (new branch / shallow clone). Documentation-only
+# changes yield []. Use --all to force every tool (CI label ci:build-all).
+#
+# Path mapping is covered by scripts/ci-changed-tools-test.sh.
 set -euo pipefail
 
 usage() {
@@ -68,6 +70,11 @@ while IFS= read -r file; do
       json_array "${all_tools[@]}"
       exit 0
       ;;
+    Makefile|.hadolint.yaml|scripts|scripts/*|.github/workflows|.github/workflows/*)
+      echo "Build infrastructure changed; building all tools" >&2
+      json_array "${all_tools[@]}"
+      exit 0
+      ;;
     tools/*)
       tool=${file#tools/}
       tool=${tool%%/*}
@@ -79,7 +86,7 @@ while IFS= read -r file; do
 done <<< "$changed"
 
 if ((${#selected[@]} == 0)); then
-  echo "No tool or deps changes; skipping binary builds" >&2
+  echo "No tool, deps, or infrastructure changes; skipping binary builds" >&2
   echo '[]'
   exit 0
 fi
