@@ -10,10 +10,12 @@ ARG STRACE_SOURCE_SHA256
 ARG TARGETARCH
 
 # xz for the official release tarball. --enable-mpers=no is required for musl static.
+# The decompressor is unpinned: it only unpacks a SHA256-verified tarball.
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
     build-base=0.5-r3 \
     linux-headers=6.6-r1 \
-    xz=5.8.3-r0
+    xz
 
 ENV CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static"
