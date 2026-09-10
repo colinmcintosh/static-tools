@@ -22,9 +22,11 @@ ZLIB_VERSION := 1.3.2
 ZLIB_URL := https://github.com/madler/zlib/releases/download/v$(ZLIB_VERSION)/zlib-$(ZLIB_VERSION).tar.gz
 ZLIB_SHA256 := bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16
 
-OPENSSL_VERSION := 3.3.7
+# 3.5 is the current LTS branch, supported until 2030-04-08. Do not move to a
+# non-LTS branch: 3.4 and 3.6 both go EOL within months.
+OPENSSL_VERSION := 3.5.8
 OPENSSL_URL := https://github.com/openssl/openssl/releases/download/openssl-$(OPENSSL_VERSION)/openssl-$(OPENSSL_VERSION).tar.gz
-OPENSSL_SHA256 := 4900be54e81c4dfe00bb1a10dad33fd8414833573c40d0e9e3274d4ed32e53a2
+OPENSSL_SHA256 := a8f84a39918ec6415ce765d9b429d313ba97b8143169c172e734b9514464f5b2
 
 NGHTTP2_VERSION := 1.69.0
 NGHTTP2_URL := https://github.com/nghttp2/nghttp2/releases/download/v$(NGHTTP2_VERSION)/nghttp2-$(NGHTTP2_VERSION).tar.gz

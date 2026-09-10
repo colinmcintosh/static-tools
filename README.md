@@ -17,12 +17,12 @@ The provenance is intended to prove the supply chain between upstream source (th
 | mtr | 0.95 | Network diagnostic combining ping and traceroute (includes `mtr-packet`) |
 | drill | 1.9.2 | DNS lookup utility (ldns) - lightweight dig alternative |
 | dig | 9.16.50 | DNS lookup utility from BIND - full-featured DNS diagnostics |
-| curl | 8.11.1 | Command line URL transfer tool |
+| curl | 8.22.0 | Command line URL transfer tool |
 | wget | 1.25.0 | Network file retriever |
 | iperf3 | 3.18 | Network bandwidth measurement tool |
 | tcpdump | 4.99.6 | Packet analyzer |
 | ncat | 7.991 | nmap netcat with SSL |
-| openssl | 3.3.7 | Cryptography command-line tool |
+| openssl | 3.5.8 | Cryptography command-line tool |
 | rsync | 3.5.0 | Fast incremental file-copying tool |
 | socat | 1.8.1.3 | Multipurpose relay (SOcket CAT) |
 | jq | 1.8.2 | Command-line JSON processor |

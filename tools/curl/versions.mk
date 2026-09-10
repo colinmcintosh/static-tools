@@ -4,6 +4,6 @@
 include ../../deps/versions.mk
 
 # curl source (tar.gz so the tool build does not need xz)
-CURL_VERSION := 8.11.1
+CURL_VERSION := 8.22.0
 CURL_SOURCE_URL := https://curl.se/download/curl-$(CURL_VERSION).tar.gz
-CURL_SOURCE_SHA256 := a889ac9dbba3644271bd9d1302b5c22a088893719b72be3487bc3d401e5c4e80
+CURL_SOURCE_SHA256 := d54dd598bf05927a726deb38df31c6a255ba83ff1de57c5d1464dac3ed8f44a1
