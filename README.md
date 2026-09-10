@@ -91,6 +91,47 @@ Then check checksums:
 sha256sum -c SHA256SUMS.txt
 ```
 
+### One-liner
+
+**Warning:** This is dangerous. It downloads, verifies, and then **renames files into the current directory** (`curl`, `wget`, `openssl`, `file`, `magic.mgc`, and the rest). That can overwrite or alter files already there — including tools on your `PATH` if you run it in a system directory such as `/usr/local/bin`. Use an empty directory you control.
+
+Requires the [GitHub CLI](https://cli.github.com/). The subshell keeps `set -eu` from leaking into your interactive shell.
+
+```bash
+(
+  set -eu
+  a=$(uname -m)
+  case $a in
+    x86_64) a=amd64 ;;
+    aarch64) a=arm64 ;;
+    *) echo "unsupported: $a" >&2; exit 1 ;;
+  esac
+  t=$(gh release view -R colinmcintosh/static-tools --json tagName -q .tagName)
+  gh release download -R colinmcintosh/static-tools --clobber -p "*-$a" -p SHA256SUMS.txt
+  sha256sum -c --ignore-missing SHA256SUMS.txt
+  printf '%s\0' *-"$a" | xargs -0 -P"$(nproc)" -I{} bash -c '
+    f=$1 t=$2
+    if gh attestation verify "$f" \
+         --repo colinmcintosh/static-tools \
+         --cert-identity "https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/$t" \
+         --source-ref "refs/tags/$t" \
+         --deny-self-hosted-runners >/dev/null 2>&1; then
+      printf "%s: VERIFIED\n" "$f"
+    else
+      printf "%s: FAILED\n" "$f" >&2
+      exit 1
+    fi
+  ' _ {} "$t"
+  for f in *-"$a"; do
+    d=${f%-$a}
+    mv "$f" "$d"
+    [ "$d" = magic.mgc ] || chmod +x "$d"
+  done
+)
+```
+
+`file` still needs `./file -m magic.mgc`.
+
 ## Building Locally
 
 ### Prerequisites
