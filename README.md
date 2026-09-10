@@ -169,7 +169,7 @@ No `gh`. This only downloads the latest release assets for your architecture and
 ### Prerequisites
 
 - Docker with BuildKit support
-- GNU Make
+- GNU Make 4.3 or newer (grouped targets for `mtr` and `file`)
 
 ### Build for Your Architecture
 

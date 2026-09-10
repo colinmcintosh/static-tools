@@ -22,7 +22,7 @@ deps:
 
 build: $(TOOL_OUT_DIR)/$(ARCH)/file $(TOOL_OUT_DIR)/$(ARCH)/magic.mgc
 
-$(TOOL_OUT_DIR)/$(ARCH)/file $(TOOL_OUT_DIR)/$(ARCH)/magic.mgc: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libz.a
+$(TOOL_OUT_DIR)/$(ARCH)/file $(TOOL_OUT_DIR)/$(ARCH)/magic.mgc &: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libz.a
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \

@@ -37,7 +37,7 @@ deps:
 .PHONY: build
 build: $(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet
 
-$(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libncursesw.a
+$(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet &: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libncursesw.a
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
@@ -52,7 +52,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet: Dockerfile versi
 	@echo "Built mtr $(MTR_VERSION) for $(ARCH):"
 	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
 
-$(DEPS_PREFIX)/lib/libncursesw.a $(DEPS_PREFIX)/lib/libssl.a:
+$(DEPS_PREFIX)/lib/libncursesw.a $(DEPS_PREFIX)/lib/libssl.a &:
 	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 
 # Build for all architectures

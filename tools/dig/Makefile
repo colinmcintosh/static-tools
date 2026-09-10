@@ -52,7 +52,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/dig: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libuv.a
 	@echo "Built dig (from BIND $(BIND9_VERSION)) for $(ARCH):"
 	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
 
-$(DEPS_PREFIX)/lib/libuv.a $(DEPS_PREFIX)/lib/libssl.a:
+$(DEPS_PREFIX)/lib/libuv.a $(DEPS_PREFIX)/lib/libssl.a &:
 	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 
 # Build for all architectures
