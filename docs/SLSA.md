@@ -59,12 +59,8 @@ bit-for-bit reproducible (Build L4-class).
 ## Source
 
 Source integrity on `main` is enforced with a GitHub branch ruleset: required
-commit signatures, no force-push, no branch deletion. The ruleset keeps a
-repository-role bypass in `pull_request` mode on purpose. This is a
-solo-maintainer repository; the bypass is the escape hatch when a rule is
-wrong. Using it skips the rest of the ruleset for that merge, including
-required checks and signatures, so it should stay rare. There is no
-`CODEOWNERS` file. That is not Source L3 and is not gittuf.
+commit signatures, no force-push, no branch deletion. That is not Source L3
+and is not gittuf.
 
 Tags matching `v*` cannot be moved or deleted once created. Because tag
 *creation* is not restricted, `release.yml` additionally requires that the
