@@ -21,7 +21,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include" \
     LDFLAGS="-L${PREFIX}/lib -static-pie" \
-    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    CFLAGS="-Os -fPIE -ftls-model=local-exec -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 RUN wget -q "https://curl.se/download/curl-${CURL_VERSION}.tar.gz" -O curl.tar.gz && \
@@ -62,6 +62,7 @@ RUN tar xzf curl.tar.gz && \
     strip /out/curl && \
     ! readelf -l /out/curl | grep -q INTERP && \
     readelf -h /out/curl | grep -q 'Type:[[:space:]]*DYN' && \
+    ! readelf -Wr /out/curl | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

@@ -75,7 +75,7 @@ test: build
 		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /curl --version 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "curl" || \
-		(echo "ERROR: curl --version failed" && exit 1)
+		(echo "ERROR: curl --version failed: $$OUTPUT" && exit 1)
 	@echo "✓ curl --version works"
 	@# Run curl --help in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \

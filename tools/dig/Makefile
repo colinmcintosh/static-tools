@@ -75,7 +75,7 @@ test: build
 		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /dig -v 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "dig" || \
-		(echo "ERROR: dig -v failed" && exit 1)
+		(echo "ERROR: dig -v failed: $$OUTPUT" && exit 1)
 	@echo "✓ dig -v works"
 	@# Run dig -h in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \

@@ -31,5 +31,14 @@ for bin in "$@"; do
         readelf -h "${bin}" >&2
         exit 1
     fi
+    # musl static-pie applies only *RELATIVE relocs. Leftover TLS/symbolic
+    # relocs stay as zeros and crash (BIND isc_tid_v R_*_TPOFF* on amd64).
+    if bad_relocs="$(readelf -Wr "${bin}" | awk '
+        $3 ~ /^R_/ && $3 !~ /RELATIVE$/ { print }
+    ')" && [[ -n "${bad_relocs}" ]]; then
+        echo "ERROR: ${bin} has relocs musl static-pie cannot apply:" >&2
+        echo "${bad_relocs}" >&2
+        exit 1
+    fi
     echo "✓ ${bin} is a static PIE"
 done

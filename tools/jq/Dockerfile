@@ -12,7 +12,7 @@ ARG TARGETARCH
 RUN apk add --no-cache \
     build-base=0.5-r3
 
-ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
+ENV CFLAGS="-Os -fPIE -ftls-model=local-exec -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"
 
 WORKDIR /src
@@ -36,6 +36,7 @@ RUN tar xzf jq.tar.gz && \
     strip /out/jq && \
     ! readelf -l /out/jq | grep -q INTERP && \
     readelf -h /out/jq | grep -q 'Type:[[:space:]]*DYN' && \
+    ! readelf -Wr /out/jq | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export
