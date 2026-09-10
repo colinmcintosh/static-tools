@@ -20,6 +20,12 @@ bit-for-bit reproducible (Build L4-class).
   [`.github/workflows/attest.yml`](../.github/workflows/attest.yml) using
   SHA-pinned `actions/attest` (Sigstore keyless signing). Isolation of signing
   from the build job is what satisfies Build L3.
+- GitHub Actions must be pinned to a full commit SHA
+  (`sha_pinning_required`). Dependabot watches the `github-actions`
+  ecosystem weekly
+  ([`.github/dependabot.yml`](../.github/dependabot.yml)). Tarball pins in
+  `versions.mk` are outside Dependabot; watching those is
+  [#46](https://github.com/colinmcintosh/static-tools/issues/46).
 - Releases are published as GitHub Releases. Treat released assets as
   immutable: verify them, do not re-tag or overwrite.
 
