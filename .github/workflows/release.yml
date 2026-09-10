@@ -16,6 +16,12 @@ on:
 
 permissions: {}
 
+# Tag push and workflow_dispatch of the same tag must not publish over each other.
+# cancel-in-progress is false so a started release is not aborted mid-publish.
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && replace(inputs.tag, 'refs/tags/', '') || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   verify-tag:
     name: Verify release tag
@@ -36,11 +42,13 @@ jobs:
 
       - name: Verify tag points at the commit being built
         id: verify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG="${{ inputs.tag }}"
-            TAG="${TAG#refs/tags/}"
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            TAG="${INPUT_TAG#refs/tags/}"
           else
             TAG="${GITHUB_REF#refs/tags/}"
           fi
@@ -84,6 +92,23 @@ jobs:
           TAG_SHA: ${{ steps.verify.outputs.sha }}
           KEY_OWNER: ${{ github.repository_owner }}
         run: scripts/verify-commit-signatures.sh "${TAG_SHA}^!"
+
+      - name: Refuse to overwrite a published release
+        env:
+          TAG: ${{ steps.verify.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if json=$(gh release view "${TAG}" --json isDraft 2>/dev/null); then
+            is_draft=$(printf '%s' "${json}" | jq -r .isDraft)
+            if [[ "${is_draft}" == "false" ]]; then
+              echo "::error::Release ${TAG} is already published. Re-running would replace assets with different bytes while existing checksums and attestations stay in circulation. Delete the GitHub Release (not the tag) first if a republish is intentional."
+              exit 1
+            fi
+            echo "Draft release ${TAG} exists; this run may update it"
+          else
+            echo "No existing release for ${TAG}"
+          fi
 
   # Shared static prefix, built once per architecture in this run.
   # Do not restore a cross-run cache here; release provenance stays hermetic.
@@ -223,6 +248,20 @@ jobs:
         with:
           ref: ${{ format('refs/tags/{0}', needs.verify-tag.outputs.tag) }}
 
+      - name: Refuse to overwrite a published release
+        env:
+          TAG: ${{ needs.verify-tag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if json=$(gh release view "${TAG}" --json isDraft 2>/dev/null); then
+            is_draft=$(printf '%s' "${json}" | jq -r .isDraft)
+            if [[ "${is_draft}" == "false" ]]; then
+              echo "::error::Release ${TAG} is already published. Re-running would replace assets with different bytes while existing checksums and attestations stay in circulation. Delete the GitHub Release (not the tag) first if a republish is intentional."
+              exit 1
+            fi
+          fi
+
       - name: Download build artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -306,3 +345,46 @@ jobs:
         with:
           tag_name: ${{ needs.verify-tag.outputs.tag }}
           draft: false
+
+  verify-published:
+    name: Verify published assets
+    needs: [verify-tag, release]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ format('refs/tags/{0}', needs.verify-tag.outputs.tag) }}
+
+      - name: Download published release assets
+        env:
+          TAG: ${{ needs.verify-tag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p published
+          gh release download "${TAG}" --dir published
+          echo "Published assets:"
+          ls -la published
+
+      - name: Verify published checksums and attestations
+        env:
+          TAG: ${{ needs.verify-tag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          VERIFY_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cd published
+          test -f SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+          mapfile -t bins < <(find . -maxdepth 1 -type f \( -name '*-amd64' -o -name '*-arm64' \) -printf '%f\n' | sort)
+          expected=40
+          if [ "${#bins[@]}" -ne "${expected}" ]; then
+            echo "::error::Expected ${expected} published binaries, found ${#bins[@]}"
+            exit 1
+          fi
+          # SHA256SUMS.txt is not attested; verify binaries only.
+          ../scripts/verify.sh "${TAG}" "${bins[@]}"

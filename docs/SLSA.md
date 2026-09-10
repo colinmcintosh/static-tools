@@ -62,11 +62,8 @@ tagged commit is reachable from `origin/main` and carries an acceptable
 signature, so a release cannot be cut from an unreviewed branch. Both workflows
 share one implementation in
 [`scripts/verify-commit-signatures.sh`](../scripts/verify-commit-signatures.sh).
+Allowed fingerprints are listed in
+[`scripts/allowed-signing-keys.txt`](../scripts/allowed-signing-keys.txt).
 
-## Exceptions
-
-- **`dig`**: BIND **9.16.50** is the last autoconf line that still links
-  statically. Newer BIND uses Meson and is not built here. 9.16 is
-  upstream-EOL; this is an explicit exception, not a Meson rewrite.
-- **`file`**: libmagic does not search next to the binary. Use
-  `file -m magic.mgc-<arch>` or set `MAGIC=` to the shipped magic file.
+Known limitations of individual tools are listed in the
+[README Known Issues](../README.md#known-issues) section.

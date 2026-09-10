@@ -19,7 +19,7 @@ The provenance is intended to prove the supply chain between upstream source (th
 | dig | 9.16.50 | DNS lookup utility from BIND - full-featured DNS diagnostics |
 | curl | 8.22.0 | Command line URL transfer tool |
 | wget | 1.25.0 | Network file retriever |
-| iperf3 | 3.18 | Network bandwidth measurement tool |
+| iperf3 | 3.21 | Network bandwidth measurement tool |
 | tcpdump | 4.99.6 | Packet analyzer |
 | ncat | 7.991 | nmap netcat with SSL |
 | openssl | 3.5.8 | Cryptography command-line tool |
@@ -208,6 +208,36 @@ All dependencies are pinned for reproducibility:
 ### Verification
 
 Every release includes `SHA256SUMS.txt`. Provenance is stored as GitHub Artifact Attestations (not a `multiple.intoto.jsonl` release asset). Verify with `gh attestation verify` and `--signer-workflow` as above.
+
+## Known Issues
+
+### `dig` is BIND 9.16.50 (upstream EOL)
+
+BIND **9.16.50** is the last autoconf line that still links statically. Newer BIND uses Meson and is not built here. 9.16 is upstream-EOL.
+
+### `file` does not find `magic.mgc` next to the binary
+
+libmagic does not search next to the binary. Use `file -m magic.mgc-<arch>` or set `MAGIC=` to the shipped magic file.
+
+### `wget` 1.25.0 is the newest release and still has unfixed CVEs
+
+1.25.0 is the latest tarball on ftp.gnu.org. Applicable issues have fixes only as upstream git commits:
+
+- CVE-2026-58470 (5.3) — integer overflow in `parse_content_range()`
+- CVE-2026-58471 (5.9) — heap buffer overflow in `convert_fname()`
+- CVE-2026-58472 (5.9) — heap buffer overflow in `html_quote_string()`
+- CVE-2026-16599 — FTP OPIE/S-KEY unbounded MD5 iteration count (`+opie`)
+
+CVE-2026-58469 (7.5, metalink) does **not** apply: this build is `-metalink`.
+
+### `iperf3` 3.21 server mode is still vulnerable to two DoS CVEs
+
+3.21 is the latest release (2026-04-09). Two server-mode issues have fix commits that postdate 3.21:
+
+- CVE-2026-71217 (7.5) — crafted control-channel JSON causes unbounded stream/thread creation
+- CVE-2026-71218 (5.3) — `JSON_read()` allocates on a peer-controlled length with no upper bound
+
+Both require running as a server (`iperf3 -s`). Client-only use is not exposed.
 
 ## License
 
