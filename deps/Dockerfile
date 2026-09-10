@@ -13,12 +13,16 @@ ARG PREFIX=/opt/st
 
 # build-base and linux-headers have been stable across Alpine 3.21; they
 # provide gcc/make/strip/musl-dev. Do not apk-add openssl/zlib/nghttp2/perl.
+# bzip2 is left unpinned on purpose: it only decompresses tarballs that are
+# already SHA256-verified, so its version cannot affect the output, while an
+# exact pin breaks the build as soon as Alpine bumps the revision.
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
     autoconf=2.72-r0 \
     automake=1.17-r0 \
     bison=3.8.2-r1 \
     build-base=0.5-r3 \
-    bzip2=1.0.8-r6 \
+    bzip2 \
     flex=2.6.4-r6 \
     libtool=2.4.7-r3 \
     linux-headers=6.6-r1

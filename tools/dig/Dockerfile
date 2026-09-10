@@ -11,10 +11,12 @@ ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 # Compiler + xz for the BIND tarball. C libraries come from the SHA256-pinned prefix.
+# The decompressor is unpinned: it only unpacks a SHA256-verified tarball.
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
     build-base=0.5-r3 \
     linux-headers=6.6-r1 \
-    xz=5.8.3-r0
+    xz
 
 COPY --from=deps / ${PREFIX}
 

@@ -11,9 +11,11 @@ ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 # Compiler + bzip2 for Debian's orig tarball. OpenSSL comes from the SHA256-pinned prefix.
+# The decompressor is unpinned: it only unpacks a SHA256-verified tarball.
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
     build-base=0.5-r3 \
-    bzip2=1.0.8-r6 \
+    bzip2 \
     linux-headers=6.6-r1
 
 COPY --from=deps / ${PREFIX}
