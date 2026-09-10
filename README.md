@@ -272,7 +272,7 @@ Details are in [docs/SLSA.md](docs/SLSA.md). Summary:
 
 All dependencies are pinned for reproducibility:
 
-- **Base images**: Alpine pinned by SHA256 digest
+- **Base images**: Alpine pinned by the multi-arch index digest (`deps/versions.mk`)
 - **Source code**: Verified with SHA256 checksums
 - **GitHub Actions**: Pinned by commit SHA
 - **C libraries**: Built from upstream tarballs pinned by URL + SHA256 (`deps/versions.mk`)
@@ -311,6 +311,10 @@ CVE-2026-58469 (7.5, metalink) does **not** apply: this build is `-metalink`.
 - CVE-2026-71218 (5.3) — `JSON_read()` allocates on a peer-controlled length with no upper bound
 
 Both require running as a server (`iperf3 -s`). Client-only use is not exposed.
+
+### Alpine 3.21 reaches EOL on 2026-11-01
+
+The builder is pinned to the 3.21.7 index digest. Move to Alpine 3.24 before EOL; that work is tracked in [#44](https://github.com/colinmcintosh/static-tools/issues/44).
 
 ## License
 
