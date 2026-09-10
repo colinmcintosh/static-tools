@@ -211,8 +211,6 @@ Every release includes `SHA256SUMS.txt`. Provenance is stored as GitHub Artifact
 
 ## Known Issues
 
-These are accepted limitations, not accidental omissions.
-
 ### `dig` is BIND 9.16.50 (upstream EOL)
 
 BIND **9.16.50** is the last autoconf line that still links statically. Newer BIND uses Meson and is not built here. 9.16 is upstream-EOL.
