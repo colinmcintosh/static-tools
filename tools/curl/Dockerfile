@@ -56,10 +56,11 @@ RUN tar xzf curl.tar.gz && \
         --disable-mqtt \
         --disable-manual \
         --disable-docs && \
-    make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie -all-static" && \
+    make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp src/curl /out/curl && \
     strip /out/curl && \
+    /out/curl --version && \
     ! readelf -l /out/curl | grep -q INTERP && \
     readelf -h /out/curl | grep -q 'Type:[[:space:]]*DYN' && \
     ! readelf -Wr /out/curl | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \

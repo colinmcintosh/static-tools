@@ -28,12 +28,13 @@ RUN tar xzf jq.tar.gz && \
         --disable-docs \
         --disable-maintainer-mode \
         --with-oniguruma=builtin && \
-    make -j"$(nproc)" \
-        LDFLAGS="-static-pie -all-static" \
-        jq_LDFLAGS="-static-pie -all-static" && \
+    make -j"$(nproc)" && \
+    ./libtool --tag=CC --mode=link gcc -static-pie -s -o jq \
+        src/main.o libjq.la vendor/oniguruma/src/libonig.la -lm && \
     mkdir -p /out && \
-    cp jq /out/jq && \
+    cp jq /out/jq 2>/dev/null || cp .libs/jq /out/jq && \
     strip /out/jq && \
+    /out/jq --version && \
     ! readelf -l /out/jq | grep -q INTERP && \
     readelf -h /out/jq | grep -q 'Type:[[:space:]]*DYN' && \
     ! readelf -Wr /out/jq | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
