@@ -22,8 +22,8 @@ COPY --from=deps / ${PREFIX}
 ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include -I${PREFIX}/include/ncursesw" \
-    LDFLAGS="-L${PREFIX}/lib -static" \
-    CFLAGS="-static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    LDFLAGS="-L${PREFIX}/lib -static-pie" \
+    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 RUN wget -q "https://github.com/traviscross/mtr/archive/refs/tags/v${MTR_VERSION}.tar.gz" -O mtr.tar.gz && \
@@ -35,11 +35,13 @@ RUN tar xzf mtr.tar.gz && \
     ./configure \
         --without-gtk \
         --without-jansson \
-        CFLAGS="-static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
-        LDFLAGS="-L${PREFIX}/lib -static -s" && \
+        CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
+        LDFLAGS="-L${PREFIX}/lib -static-pie -s" && \
     make -j"$(nproc)" && \
-    file mtr | grep -q "statically linked" && \
-    file mtr-packet | grep -q "statically linked" && \
+    ! readelf -l mtr | grep -q INTERP && \
+    readelf -h mtr | grep -q 'Type:[[:space:]]*DYN' && \
+    ! readelf -l mtr-packet | grep -q INTERP && \
+    readelf -h mtr-packet | grep -q 'Type:[[:space:]]*DYN' && \
     mkdir -p /out && \
     cp mtr mtr-packet /out/ && \
     cd /out && sha256sum * > SHA256SUMS

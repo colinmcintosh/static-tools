@@ -17,7 +17,8 @@ COPY --from=deps / ${PREFIX}
 WORKDIR /out
 RUN cp "${PREFIX}/bin/openssl" /out/openssl && \
     strip /out/openssl && \
-    file /out/openssl | grep -q "statically linked" && \
+    ! readelf -l /out/openssl | grep -q INTERP && \
+    readelf -h /out/openssl | grep -q 'Type:[[:space:]]*DYN' && \
     sha256sum * > SHA256SUMS
 
 FROM scratch AS export

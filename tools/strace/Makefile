@@ -38,7 +38,7 @@ build-all:
 test: build
 	@echo "==> Testing strace binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/strace || (echo "ERROR: strace binary not found" && exit 1)
-	@file $(TOOL_OUT_DIR)/$(ARCH)/strace | grep -q "statically linked" || (echo "ERROR: not statically linked" && exit 1)
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/strace
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/strace:/strace:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /strace -V 2>&1) && \
@@ -51,7 +51,7 @@ test: build
 	@echo "==> All strace tests passed"
 
 verify-static: build
-	@file $(TOOL_OUT_DIR)/$(ARCH)/strace
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/strace
 
 clean:
 	rm -rf $(TOOL_OUT_DIR)

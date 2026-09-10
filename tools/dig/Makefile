@@ -52,7 +52,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/dig: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libuv.a
 	@echo "Built dig (from BIND $(BIND9_VERSION)) for $(ARCH):"
 	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
 
-$(DEPS_PREFIX)/lib/libuv.a $(DEPS_PREFIX)/lib/libssl.a:
+$(DEPS_PREFIX)/lib/libuv.a $(DEPS_PREFIX)/lib/libssl.a &:
 	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
 
 # Build for all architectures
@@ -69,15 +69,13 @@ test: build
 		(echo "ERROR: dig binary not found or not executable" && exit 1)
 	@echo "✓ dig binary exists"
 	@# Check static linking
-	@file $(TOOL_OUT_DIR)/$(ARCH)/dig | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ dig binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/dig
 	@# Run dig -v in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /dig -v 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "dig" || \
-		(echo "ERROR: dig -v failed" && exit 1)
+		(echo "ERROR: dig -v failed: $$OUTPUT" && exit 1)
 	@echo "✓ dig -v works"
 	@# Run dig -h in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
@@ -99,7 +97,7 @@ test: build
 .PHONY: verify-static
 verify-static: build
 	@echo "==> Checking dig binary linking for $(ARCH)"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/dig
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/dig
 
 # Clean build artifacts
 .PHONY: clean

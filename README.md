@@ -6,7 +6,7 @@ See [docs/SLSA.md](docs/SLSA.md) for the claim, how it is achieved, and how to v
 
 ## Overview
 
-This repository provides statically linked binaries that can run on any Linux system without dependencies. Release builds run in digest-pinned containers. Provenance is signed in an isolated reusable workflow so the build job cannot mint attestations.
+This repository provides statically linked PIE binaries that can run on any Linux system without dependencies. They get ASLR (`ET_DYN`, no interpreter). Release builds run in digest-pinned containers. Provenance is signed in an isolated reusable workflow so the build job cannot mint attestations.
 
 The provenance is intended to prove the supply chain between upstream source (the tarball being built) and the binary an end user downloads. It does not prove the supply chain of that upstream source.
 
@@ -169,7 +169,7 @@ No `gh`. This only downloads the latest release assets for your architecture and
 ### Prerequisites
 
 - Docker with BuildKit support
-- GNU Make
+- GNU Make 4.3 or newer (grouped targets for `mtr` and `file`)
 
 ### Build for Your Architecture
 
@@ -248,7 +248,8 @@ To add a new tool (e.g., `dig`):
    - Use Alpine with musl for static linking, pinned by digest
    - `COPY --from=deps` the shared static prefix (do not `apk add` C libraries) unless the tool does not link the prefix
    - Verify source tarballs with SHA256
-   - Compile with `-static` flags
+   - Compile with `-fPIE` / `-static-pie` so the binary is a static PIE
+   - Assert linkage with `readelf` (no `INTERP`, `Type: DYN`), not `file`
    - If the tool needs a new library, add it to `deps/` first
 
 4. Create `tools/dig/Makefile` with build targets
@@ -272,7 +273,7 @@ Details are in [docs/SLSA.md](docs/SLSA.md). Summary:
 
 All dependencies are pinned for reproducibility:
 
-- **Base images**: Alpine pinned by SHA256 digest
+- **Base images**: Alpine pinned by the multi-arch index digest (`deps/versions.mk`)
 - **Source code**: Verified with SHA256 checksums
 - **GitHub Actions**: Pinned by commit SHA
 - **C libraries**: Built from upstream tarballs pinned by URL + SHA256 (`deps/versions.mk`)
@@ -311,6 +312,10 @@ CVE-2026-58469 (7.5, metalink) does **not** apply: this build is `-metalink`.
 - CVE-2026-71218 (5.3) — `JSON_read()` allocates on a peer-controlled length with no upper bound
 
 Both require running as a server (`iperf3 -s`). Client-only use is not exposed.
+
+### Alpine 3.21 reaches EOL on 2026-11-01
+
+The builder is pinned to the 3.21.7 index digest. Move to Alpine 3.24 before EOL; that work is tracked in [#44](https://github.com/colinmcintosh/static-tools/issues/44).
 
 ## License
 

@@ -5,8 +5,15 @@
 # are NOT installed via apk; they are fetched by URL and verified with SHA256.
 
 ALPINE_VERSION := 3.21
-ALPINE_DIGEST_AMD64 := sha256:41c81533144786e0beb2b148667355a6c7659aa99a14ed837ff15a98ca9d71f3
-ALPINE_DIGEST_ARM64 := sha256:fac2338de28c1143c0e69b48ba2d9b50481d5f1542b46c4656e5d6912d2d963a
+# Multi-arch index digest of alpine:3.21 (currently 3.21.7). Docker
+# selects the platform from --platform / TARGETARCH, so one pin covers
+# amd64 and arm64 and cannot be paired with the wrong architecture.
+# The per-arch names stay so existing Makefiles keep working.
+# 3.21 EOL is 2026-11-01; migration to 3.24 is tracked in
+# https://github.com/colinmcintosh/static-tools/issues/44
+ALPINE_DIGEST := sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+ALPINE_DIGEST_AMD64 := $(ALPINE_DIGEST)
+ALPINE_DIGEST_ARM64 := $(ALPINE_DIGEST)
 
 # Host tools built into the prefix (perl is required by OpenSSL Configure)
 PERL_VERSION := 5.40.2

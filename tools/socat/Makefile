@@ -46,7 +46,7 @@ build-all:
 test: build
 	@echo "==> Testing socat binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/socat || (echo "ERROR: socat binary not found" && exit 1)
-	@file $(TOOL_OUT_DIR)/$(ARCH)/socat | grep -q "statically linked" || (echo "ERROR: not statically linked" && exit 1)
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/socat
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/socat:/socat:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /socat -V 2>&1) && \
@@ -60,7 +60,7 @@ test: build
 	@echo "==> All socat tests passed"
 
 verify-static: build
-	@file $(TOOL_OUT_DIR)/$(ARCH)/socat
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/socat
 
 clean:
 	rm -rf $(TOOL_OUT_DIR)

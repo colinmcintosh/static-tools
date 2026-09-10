@@ -17,8 +17,8 @@ RUN apk add --no-cache \
     linux-headers=6.6-r1 \
     xz
 
-ENV CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
-    LDFLAGS="-static"
+ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
+    LDFLAGS="-static-pie"
 
 WORKDIR /src
 RUN wget -q "https://github.com/strace/strace/releases/download/v${STRACE_VERSION}/strace-${STRACE_VERSION}.tar.xz" -O strace.tar.xz && \
@@ -29,11 +29,12 @@ RUN tar xf strace.tar.xz && \
     ./configure \
         --prefix=/usr \
         --enable-mpers=no && \
-    make -j"$(nproc)" LDFLAGS="-static" && \
+    make -j"$(nproc)" LDFLAGS="-static-pie" && \
     mkdir -p /out && \
     cp src/strace /out/strace && \
     strip /out/strace && \
-    file /out/strace | grep -q "statically linked" && \
+    ! readelf -l /out/strace | grep -q INTERP && \
+    readelf -h /out/strace | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

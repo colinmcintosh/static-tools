@@ -12,8 +12,8 @@ ARG TARGETARCH
 RUN apk add --no-cache \
     build-base=0.5-r3
 
-ENV CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
-    LDFLAGS="-static"
+ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
+    LDFLAGS="-static-pie"
 
 WORKDIR /src
 RUN wget -q "https://github.com/schweikert/fping/releases/download/v${FPING_VERSION}/fping-${FPING_VERSION}.tar.gz" -O fping.tar.gz && \
@@ -22,11 +22,12 @@ RUN wget -q "https://github.com/schweikert/fping/releases/download/v${FPING_VERS
 RUN tar xzf fping.tar.gz && \
     cd fping-${FPING_VERSION} && \
     ./configure --prefix=/usr && \
-    make -j"$(nproc)" LDFLAGS="-static" && \
+    make -j"$(nproc)" LDFLAGS="-static-pie" && \
     mkdir -p /out && \
     cp src/fping /out/fping && \
     strip /out/fping && \
-    file /out/fping | grep -q "statically linked" && \
+    ! readelf -l /out/fping | grep -q INTERP && \
+    readelf -h /out/fping | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

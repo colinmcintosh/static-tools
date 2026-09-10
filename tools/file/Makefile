@@ -22,7 +22,7 @@ deps:
 
 build: $(TOOL_OUT_DIR)/$(ARCH)/file $(TOOL_OUT_DIR)/$(ARCH)/magic.mgc
 
-$(TOOL_OUT_DIR)/$(ARCH)/file $(TOOL_OUT_DIR)/$(ARCH)/magic.mgc: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libz.a
+$(TOOL_OUT_DIR)/$(ARCH)/file $(TOOL_OUT_DIR)/$(ARCH)/magic.mgc &: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libz.a
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
@@ -47,7 +47,7 @@ test: build
 	@echo "==> Testing file binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/file || (echo "ERROR: file binary not found" && exit 1)
 	@test -f $(TOOL_OUT_DIR)/$(ARCH)/magic.mgc || (echo "ERROR: magic.mgc not found" && exit 1)
-	@file $(TOOL_OUT_DIR)/$(ARCH)/file | grep -q "statically linked" || (echo "ERROR: not statically linked" && exit 1)
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/file
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/file:/file:ro \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/magic.mgc:/magic.mgc:ro \
@@ -63,7 +63,7 @@ test: build
 	@echo "==> All file tests passed"
 
 verify-static: build
-	@file $(TOOL_OUT_DIR)/$(ARCH)/file
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/file
 
 clean:
 	rm -rf $(TOOL_OUT_DIR)

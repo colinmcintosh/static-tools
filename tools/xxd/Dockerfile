@@ -12,8 +12,8 @@ ARG TARGETARCH
 RUN apk add --no-cache \
     build-base=0.5-r3
 
-ENV CFLAGS="-static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
-    LDFLAGS="-static"
+ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
+    LDFLAGS="-static-pie"
 
 WORKDIR /src
 RUN wget -q "https://github.com/xyproto/tinyxxd/archive/refs/tags/v${XXD_VERSION}.tar.gz" -O tinyxxd.tar.gz && \
@@ -21,11 +21,12 @@ RUN wget -q "https://github.com/xyproto/tinyxxd/archive/refs/tags/v${XXD_VERSION
 
 RUN tar xzf tinyxxd.tar.gz && \
     cd tinyxxd-${XXD_VERSION} && \
-    make -j"$(nproc)" && \
+    make -j"$(nproc)" CFLAGS="${CFLAGS} ${LDFLAGS}" && \
     mkdir -p /out && \
     cp tinyxxd /out/xxd && \
     strip /out/xxd && \
-    file /out/xxd | grep -q "statically linked" && \
+    ! readelf -l /out/xxd | grep -q INTERP && \
+    readelf -h /out/xxd | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

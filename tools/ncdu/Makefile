@@ -46,7 +46,7 @@ build-all:
 test: build
 	@echo "==> Testing ncdu binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/ncdu || (echo "ERROR: ncdu binary not found" && exit 1)
-	@file $(TOOL_OUT_DIR)/$(ARCH)/ncdu | grep -q "statically linked" || (echo "ERROR: not statically linked" && exit 1)
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/ncdu
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/ncdu:/ncdu:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /ncdu -v 2>&1) && \
@@ -60,7 +60,7 @@ test: build
 	@echo "==> All ncdu tests passed"
 
 verify-static: build
-	@file $(TOOL_OUT_DIR)/$(ARCH)/ncdu
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/ncdu
 
 clean:
 	rm -rf $(TOOL_OUT_DIR)

@@ -19,8 +19,8 @@ COPY --from=deps / ${PREFIX}
 ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include -I${PREFIX}/include/ncursesw" \
-    LDFLAGS="-L${PREFIX}/lib -static" \
-    CFLAGS="-static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    LDFLAGS="-L${PREFIX}/lib -static-pie" \
+    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 RUN wget -q "https://dev.yorhel.nl/download/ncdu-${NCDU_VERSION}.tar.gz" -O ncdu.tar.gz && \
@@ -29,11 +29,12 @@ RUN wget -q "https://dev.yorhel.nl/download/ncdu-${NCDU_VERSION}.tar.gz" -O ncdu
 RUN tar xzf ncdu.tar.gz && \
     cd ncdu-${NCDU_VERSION} && \
     ./configure --prefix=/usr && \
-    make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static" && \
+    make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp ncdu /out/ncdu && \
     strip /out/ncdu && \
-    file /out/ncdu | grep -q "statically linked" && \
+    ! readelf -l /out/ncdu | grep -q INTERP && \
+    readelf -h /out/ncdu | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

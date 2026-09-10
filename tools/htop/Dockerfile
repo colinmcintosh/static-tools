@@ -23,8 +23,8 @@ COPY --from=deps / ${PREFIX}
 ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include -I${PREFIX}/include/ncursesw" \
-    LDFLAGS="-L${PREFIX}/lib -static" \
-    CFLAGS="-static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    LDFLAGS="-L${PREFIX}/lib" \
+    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 RUN wget -q "https://github.com/htop-dev/htop/releases/download/${HTOP_VERSION}/htop-${HTOP_VERSION}.tar.xz" -O htop.tar.xz && \
@@ -34,15 +34,15 @@ RUN tar xf htop.tar.xz && \
     cd htop-${HTOP_VERSION} && \
     ./configure \
         --prefix=/usr \
-        --enable-static \
         --enable-unicode \
         --enable-capabilities \
         --disable-unwind && \
-    make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static" && \
+    make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp htop /out/htop && \
     strip /out/htop && \
-    file /out/htop | grep -q "statically linked" && \
+    ! readelf -l /out/htop | grep -q INTERP && \
+    readelf -h /out/htop | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

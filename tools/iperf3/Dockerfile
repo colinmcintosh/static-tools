@@ -21,7 +21,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include" \
     LDFLAGS="-L${PREFIX}/lib" \
-    CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 RUN wget -q "https://github.com/esnet/iperf/releases/download/${IPERF3_VERSION}/iperf-${IPERF3_VERSION}.tar.gz" -O iperf3.tar.gz && \
@@ -36,12 +36,12 @@ RUN tar xzf iperf3.tar.gz && \
         --enable-static \
         --enable-static-bin \
         --with-openssl="${PREFIX}" && \
-    make -j"$(nproc)" && \
+    make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp src/iperf3 /out/iperf3 && \
     strip /out/iperf3 && \
-    file /out/iperf3 && \
-    file /out/iperf3 | grep -q "statically linked" && \
+    ! readelf -l /out/iperf3 | grep -q INTERP && \
+    readelf -h /out/iperf3 | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

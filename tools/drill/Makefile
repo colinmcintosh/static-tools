@@ -69,9 +69,7 @@ test: build
 		(echo "ERROR: drill binary not found or not executable" && exit 1)
 	@echo "✓ drill binary exists"
 	@# Check static linking
-	@file $(TOOL_OUT_DIR)/$(ARCH)/drill | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ drill binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/drill
 	@# Run drill -v in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/drill:/drill:ro \
@@ -99,7 +97,7 @@ test: build
 .PHONY: verify-static
 verify-static: build
 	@echo "==> Checking drill binary linking for $(ARCH)"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/drill
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/drill
 
 # Clean build artifacts
 .PHONY: clean

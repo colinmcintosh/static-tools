@@ -19,8 +19,8 @@ COPY --from=deps / ${PREFIX}
 ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include" \
-    LDFLAGS="-L${PREFIX}/lib -static" \
-    CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    LDFLAGS="-L${PREFIX}/lib -static-pie" \
+    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 RUN wget -q "https://github.com/RsyncProject/rsync/releases/download/v${RSYNC_VERSION}/rsync-${RSYNC_VERSION}.tar.gz" -O rsync.tar.gz && \
@@ -35,11 +35,12 @@ RUN tar xzf rsync.tar.gz && \
         --disable-acl-support \
         --disable-xattr-support \
         --disable-md2man && \
-    make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static" && \
+    make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp rsync /out/rsync && \
     strip /out/rsync && \
-    file /out/rsync | grep -q "statically linked" && \
+    ! readelf -l /out/rsync | grep -q INTERP && \
+    readelf -h /out/rsync | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

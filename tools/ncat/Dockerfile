@@ -23,8 +23,8 @@ COPY --from=deps / ${PREFIX}
 ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include" \
-    LDFLAGS="-L${PREFIX}/lib -static" \
-    CFLAGS="-static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
+    LDFLAGS="-L${PREFIX}/lib -static-pie" \
+    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LIBS="-lssl -lcrypto -lz -ldl -lpthread"
 
 WORKDIR /src
@@ -49,7 +49,8 @@ RUN tar xjf nmap.tar.bz2 && \
     mkdir -p /out && \
     cp ncat/ncat /out/ncat && \
     strip /out/ncat && \
-    file /out/ncat | grep -q "statically linked" && \
+    ! readelf -l /out/ncat | grep -q INTERP && \
+    readelf -h /out/ncat | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export
