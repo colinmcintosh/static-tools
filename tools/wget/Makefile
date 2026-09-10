@@ -69,9 +69,7 @@ test: build
 		(echo "ERROR: wget binary not found or not executable" && exit 1)
 	@echo "✓ wget binary exists"
 	@# Check static linking
-	@file $(TOOL_OUT_DIR)/$(ARCH)/wget | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ wget binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/wget
 	@# Run wget --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
@@ -98,7 +96,7 @@ test: build
 .PHONY: verify-static
 verify-static: build
 	@echo "==> Checking wget binary linking for $(ARCH)"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/wget
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/wget
 
 # Clean build artifacts
 .PHONY: clean

@@ -38,7 +38,7 @@ build-all:
 test: build
 	@echo "==> Testing xxd binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/xxd || (echo "ERROR: xxd binary not found" && exit 1)
-	@file $(TOOL_OUT_DIR)/$(ARCH)/xxd | grep -q "statically linked" || (echo "ERROR: not statically linked" && exit 1)
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/xxd
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/xxd:/xxd:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
@@ -48,7 +48,7 @@ test: build
 	@echo "==> All xxd tests passed"
 
 verify-static: build
-	@file $(TOOL_OUT_DIR)/$(ARCH)/xxd
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/xxd
 
 clean:
 	rm -rf $(TOOL_OUT_DIR)

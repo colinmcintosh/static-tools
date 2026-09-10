@@ -69,9 +69,7 @@ test: build
 		(echo "ERROR: dig binary not found or not executable" && exit 1)
 	@echo "✓ dig binary exists"
 	@# Check static linking
-	@file $(TOOL_OUT_DIR)/$(ARCH)/dig | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ dig binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/dig
 	@# Run dig -v in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
@@ -99,7 +97,7 @@ test: build
 .PHONY: verify-static
 verify-static: build
 	@echo "==> Checking dig binary linking for $(ARCH)"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/dig
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/dig
 
 # Clean build artifacts
 .PHONY: clean

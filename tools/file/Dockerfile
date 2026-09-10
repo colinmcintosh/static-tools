@@ -19,8 +19,8 @@ COPY --from=deps / ${PREFIX}
 ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include" \
-    LDFLAGS="-L${PREFIX}/lib -static" \
-    CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    LDFLAGS="-L${PREFIX}/lib -static-pie" \
+    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 RUN wget -q "https://astron.com/pub/file/file-${FILE_VERSION}.tar.gz" -O file.tar.gz && \
@@ -42,10 +42,11 @@ RUN tar xzf file.tar.gz && \
         --disable-libseccomp && \
     make -j"$(nproc)" && \
     mkdir -p /out && \
-    gcc -static -o /out/file src/file.o src/seccomp.o src/.libs/libmagic.a -L${PREFIX}/lib -lz && \
+    gcc -static-pie -o /out/file src/file.o src/seccomp.o src/.libs/libmagic.a -L${PREFIX}/lib -lz && \
     cp magic/magic.mgc /out/magic.mgc && \
     strip /out/file && \
-    /usr/bin/file /out/file | grep -q "statically linked" && \
+    ! readelf -l /out/file | grep -q INTERP && \
+    readelf -h /out/file | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

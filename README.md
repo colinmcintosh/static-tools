@@ -6,7 +6,7 @@ See [docs/SLSA.md](docs/SLSA.md) for the claim, how it is achieved, and how to v
 
 ## Overview
 
-This repository provides statically linked binaries that can run on any Linux system without dependencies. Release builds run in digest-pinned containers. Provenance is signed in an isolated reusable workflow so the build job cannot mint attestations.
+This repository provides statically linked PIE binaries that can run on any Linux system without dependencies. They get ASLR (`ET_DYN`, no interpreter). Release builds run in digest-pinned containers. Provenance is signed in an isolated reusable workflow so the build job cannot mint attestations.
 
 The provenance is intended to prove the supply chain between upstream source (the tarball being built) and the binary an end user downloads. It does not prove the supply chain of that upstream source.
 
@@ -248,7 +248,8 @@ To add a new tool (e.g., `dig`):
    - Use Alpine with musl for static linking, pinned by digest
    - `COPY --from=deps` the shared static prefix (do not `apk add` C libraries) unless the tool does not link the prefix
    - Verify source tarballs with SHA256
-   - Compile with `-static` flags
+   - Compile with `-fPIE` / `-static-pie` so the binary is a static PIE
+   - Assert linkage with `readelf` (no `INTERP`, `Type: DYN`), not `file`
    - If the tool needs a new library, add it to `deps/` first
 
 4. Create `tools/dig/Makefile` with build targets

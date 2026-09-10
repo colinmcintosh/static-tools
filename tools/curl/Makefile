@@ -69,9 +69,7 @@ test: build
 		(echo "ERROR: curl binary not found or not executable" && exit 1)
 	@echo "✓ curl binary exists"
 	@# Check static linking
-	@file $(TOOL_OUT_DIR)/$(ARCH)/curl | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ curl binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/curl
 	@# Run curl --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
@@ -99,7 +97,7 @@ test: build
 .PHONY: verify-static
 verify-static: build
 	@echo "==> Checking curl binary linking for $(ARCH)"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/curl
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/curl
 
 # Clean build artifacts
 .PHONY: clean

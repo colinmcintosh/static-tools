@@ -23,8 +23,8 @@ COPY --from=deps / ${PREFIX}
 ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include" \
-    LDFLAGS="-L${PREFIX}/lib -static" \
-    CFLAGS="-static -Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    LDFLAGS="-L${PREFIX}/lib -static-pie" \
+    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 RUN wget -q "https://downloads.isc.org/isc/bind9/${BIND9_VERSION}/bind-${BIND9_VERSION}.tar.xz" -O bind.tar.xz && \
@@ -51,7 +51,8 @@ RUN tar xf bind.tar.xz && \
     mkdir -p /out && \
     cp dig /out/dig && \
     strip /out/dig && \
-    file /out/dig | grep -q "statically linked" && \
+    ! readelf -l /out/dig | grep -q INTERP && \
+    readelf -h /out/dig | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

@@ -69,9 +69,7 @@ test: build
 		(echo "ERROR: iperf3 binary not found or not executable" && exit 1)
 	@echo "✓ iperf3 binary exists"
 	@# Check static linking
-	@file $(TOOL_OUT_DIR)/$(ARCH)/iperf3 | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ iperf3 binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/iperf3
 	@# Run iperf3 --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/iperf3:/iperf3:ro \
@@ -92,7 +90,7 @@ test: build
 .PHONY: verify-static
 verify-static: build
 	@echo "==> Checking iperf3 binary linking for $(ARCH)"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/iperf3
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/iperf3
 
 # Clean build artifacts
 .PHONY: clean

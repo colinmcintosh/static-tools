@@ -31,7 +31,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include" \
     LDFLAGS="-L${PREFIX}/lib" \
-    CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 
@@ -81,6 +81,9 @@ RUN wget -q "${ZLIB_URL}" -O zlib.tar.gz && \
     make install && \
     cd /src && rm -rf zlib.tar.gz zlib-${ZLIB_VERSION}
 
+# OpenSSL Configure -static emits a static ET_EXEC CLI; -static-pie on
+# Configure produced a dynamic PIE instead. After install_sw we relink
+# the CLI as a static PIE so the shipped openssl matches the other tools.
 # --- openssl ---
 ARG OPENSSL_VERSION
 ARG OPENSSL_URL
@@ -103,10 +106,17 @@ RUN wget -q "${OPENSSL_URL}" -O openssl.tar.gz && \
         no-tests \
         no-docs \
         no-zlib \
+        enable-pie \
         -static \
         "${OPENSSL_TARGET}" && \
     make -j"$(nproc)" && \
     make install_sw && \
+    cc -static-pie -s -o "${PREFIX}/bin/openssl" \
+        apps/*.o apps/lib/*.o \
+        -Wl,--start-group apps/libapps.a libssl.a libcrypto.a -Wl,--end-group \
+        -ldl -pthread && \
+    readelf -l "${PREFIX}/bin/openssl" | grep -q INTERP && { echo "openssl CLI is not static"; exit 1; } || true && \
+    readelf -h "${PREFIX}/bin/openssl" | grep -q 'Type:[[:space:]]*DYN' && \
     cd /src && rm -rf openssl.tar.gz openssl-${OPENSSL_VERSION}
 
 # --- nghttp2 (library only) ---

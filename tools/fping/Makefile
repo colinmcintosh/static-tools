@@ -38,7 +38,7 @@ build-all:
 test: build
 	@echo "==> Testing fping binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/fping || (echo "ERROR: fping binary not found" && exit 1)
-	@file $(TOOL_OUT_DIR)/$(ARCH)/fping | grep -q "statically linked" || (echo "ERROR: not statically linked" && exit 1)
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/fping
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/fping:/fping:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /fping -v 2>&1) && \
@@ -52,7 +52,7 @@ test: build
 	@echo "==> All fping tests passed"
 
 verify-static: build
-	@file $(TOOL_OUT_DIR)/$(ARCH)/fping
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/fping
 
 clean:
 	rm -rf $(TOOL_OUT_DIR)

@@ -56,9 +56,7 @@ test: build
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/ncat || \
 		(echo "ERROR: ncat binary not found or not executable" && exit 1)
 	@echo "✓ ncat binary exists"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/ncat | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ ncat binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/ncat
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/ncat:/ncat:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /ncat --version 2>&1) && \
@@ -88,7 +86,7 @@ test: build
 .PHONY: verify-static
 verify-static: build
 	@echo "==> Checking ncat binary linking for $(ARCH)"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/ncat
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/ncat
 
 .PHONY: clean
 clean:

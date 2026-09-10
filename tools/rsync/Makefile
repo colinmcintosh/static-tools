@@ -56,9 +56,7 @@ test: build
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/rsync || \
 		(echo "ERROR: rsync binary not found or not executable" && exit 1)
 	@echo "✓ rsync binary exists"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/rsync | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ rsync binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/rsync
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/rsync:/rsync:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /rsync --version 2>&1); \
@@ -90,7 +88,7 @@ test: build
 .PHONY: verify-static
 verify-static: build
 	@echo "==> Checking rsync binary linking for $(ARCH)"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/rsync
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/rsync
 
 .PHONY: clean
 clean:

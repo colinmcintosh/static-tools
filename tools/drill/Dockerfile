@@ -20,8 +20,8 @@ COPY --from=deps / ${PREFIX}
 ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include" \
-    LDFLAGS="-L${PREFIX}/lib" \
-    CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    LDFLAGS="-L${PREFIX}/lib -static-pie" \
+    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 RUN wget -q "https://nlnetlabs.nl/downloads/ldns/ldns-${LDNS_VERSION}.tar.gz" -O ldns.tar.gz && \
@@ -38,10 +38,10 @@ RUN tar xzf ldns.tar.gz && \
         --with-ssl="${PREFIX}" \
         --disable-dane \
         --disable-dane-ta-usage \
-        CFLAGS="-Os -fstack-protector-strong -D_FORTIFY_SOURCE=2" && \
+        CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" && \
     make -j"$(nproc)" && \
     cd drill && \
-    ../libtool --tag=CC --mode=link gcc -all-static -s -Os \
+    ../libtool --tag=CC --mode=link gcc -static-pie -s -Os \
         -o drill \
         chasetrace.lo dnssec.lo drill.lo drill_util.lo \
         error.lo root.lo securetrace.lo work.lo \
@@ -49,7 +49,8 @@ RUN tar xzf ldns.tar.gz && \
         ../libldns.la -L${PREFIX}/lib -lcrypto -ldl -pthread && \
     mkdir -p /out && \
     cp .libs/drill /out/drill 2>/dev/null || cp drill /out/drill && \
-    file /out/drill | grep -q "statically linked" && \
+    ! readelf -l /out/drill | grep -q INTERP && \
+    readelf -h /out/drill | grep -q 'Type:[[:space:]]*DYN' && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

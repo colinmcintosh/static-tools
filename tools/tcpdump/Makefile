@@ -56,9 +56,7 @@ test: build
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/tcpdump || \
 		(echo "ERROR: tcpdump binary not found or not executable" && exit 1)
 	@echo "✓ tcpdump binary exists"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/tcpdump | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ tcpdump binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/tcpdump
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/tcpdump:/tcpdump:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /tcpdump --version 2>&1) && \
@@ -76,7 +74,7 @@ test: build
 .PHONY: verify-static
 verify-static: build
 	@echo "==> Checking tcpdump binary linking for $(ARCH)"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/tcpdump
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/tcpdump
 
 .PHONY: clean
 clean:

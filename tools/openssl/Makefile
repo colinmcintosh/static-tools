@@ -54,9 +54,7 @@ test: build
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/openssl || \
 		(echo "ERROR: openssl binary not found or not executable" && exit 1)
 	@echo "✓ openssl binary exists"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/openssl | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ openssl binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/openssl
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/openssl:/openssl:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /openssl version 2>&1) && \
@@ -75,7 +73,7 @@ test: build
 .PHONY: verify-static
 verify-static: build
 	@echo "==> Checking openssl binary linking for $(ARCH)"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/openssl
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/openssl
 
 .PHONY: clean
 clean:

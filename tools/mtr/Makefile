@@ -67,9 +67,7 @@ test: build
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/mtr || \
 		(echo "ERROR: mtr binary not found or not executable" && exit 1)
 	@echo "✓ mtr binary exists"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/mtr | grep -q "statically linked" || \
-		(echo "ERROR: Binary is not statically linked" && exit 1)
-	@echo "✓ mtr binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/mtr
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/mtr:/mtr:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /mtr --version 2>&1) && \
@@ -86,9 +84,7 @@ test: build
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet || \
 		(echo "ERROR: mtr-packet binary not found or not executable" && exit 1)
 	@echo "✓ mtr-packet binary exists"
-	@file $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet | grep -q "statically linked" || \
-		(echo "ERROR: mtr-packet is not statically linked" && exit 1)
-	@echo "✓ mtr-packet binary is statically linked"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet
 	@# mtr-packet is a stdin protocol helper (no --version/--help flags).
 	@# --version equivalent: check-support feature version
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \

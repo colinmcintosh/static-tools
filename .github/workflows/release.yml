@@ -194,13 +194,15 @@ jobs:
         run: |
           make build-${{ matrix.tool }} ARCH=${{ matrix.arch }}
 
-      - name: Verify binary is statically linked
+      - name: Verify binary is a static PIE
+        env:
+          TOOL: ${{ matrix.tool }}
+          ARCH: ${{ matrix.arch }}
         run: |
-          file dist/${{ matrix.tool }}/${{ matrix.arch }}/${{ matrix.tool }} | grep -q "statically linked"
-          echo "✓ ${{ matrix.tool }} is statically linked"
-          if [ "${{ matrix.tool }}" = "mtr" ]; then
-            file dist/mtr/${{ matrix.arch }}/mtr-packet | grep -q "statically linked"
-            echo "✓ mtr-packet is statically linked"
+          set -euo pipefail
+          scripts/assert-static-elf.sh "dist/${TOOL}/${ARCH}/${TOOL}"
+          if [ "${TOOL}" = "mtr" ]; then
+            scripts/assert-static-elf.sh "dist/mtr/${ARCH}/mtr-packet"
           fi
 
       - name: Rename artifacts with architecture suffix

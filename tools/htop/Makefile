@@ -46,7 +46,7 @@ build-all:
 test: build
 	@echo "==> Testing htop binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/htop || (echo "ERROR: htop binary not found" && exit 1)
-	@file $(TOOL_OUT_DIR)/$(ARCH)/htop | grep -q "statically linked" || (echo "ERROR: not statically linked" && exit 1)
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/htop
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/htop:/htop:ro \
 		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /htop --version 2>&1) && \
@@ -60,7 +60,7 @@ test: build
 	@echo "==> All htop tests passed"
 
 verify-static: build
-	@file $(TOOL_OUT_DIR)/$(ARCH)/htop
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/htop
 
 clean:
 	rm -rf $(TOOL_OUT_DIR)
