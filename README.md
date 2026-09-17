@@ -29,7 +29,7 @@ The provenance is intended to prove the supply chain between upstream source (th
 | fping | 5.4 | Ping multiple hosts in parallel |
 | strace | 6.17 | System-call tracer |
 | ncdu | 1.22 | NCurses disk-usage analyzer |
-| file | 5.46 | File type identification (includes `magic.mgc`; use `file -m magic.mgc-<arch>` or `MAGIC=`) |
+| file | 5.46 | File type identification (includes `magic.mgc`; save `magic.mgc-<arch>` as `magic.mgc`, then use `file -m magic.mgc` or `MAGIC=`) |
 | xxd | 1.3.16 | Hex dump utility (tinyxxd) |
 | htop | 3.5.3 | Interactive process viewer |
 
@@ -52,14 +52,16 @@ chmod +x curl-amd64
 mv curl-amd64 curl
 ```
 
-`file` does not search for magic next to the binary:
+`file` does not search for magic next to the binary. libmagic also only loads a
+compiled magic file whose name ends in `.mgc`, so save `magic.mgc-<arch>` as
+`magic.mgc`:
 
 ```bash
 curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/file-amd64
-curl -LO https://github.com/colinmcintosh/static-tools/releases/latest/download/magic.mgc-amd64
+curl -L -o magic.mgc https://github.com/colinmcintosh/static-tools/releases/latest/download/magic.mgc-amd64
 chmod +x file-amd64
-./file-amd64 -m magic.mgc-amd64 /path/to/something
-# or: MAGIC=/path/to/magic.mgc-amd64 ./file-amd64 /path/to/something
+./file-amd64 -m magic.mgc /path/to/something
+# or: MAGIC="$PWD/magic.mgc" ./file-amd64 /path/to/something
 ```
 
 ### Verify Provenance (Recommended)
@@ -99,10 +101,11 @@ Pinning the tag matters:
 while `--signer-workflow` matches only the workflow path and would accept an
 attestation produced from any branch.
 
-Then check checksums:
+Then check checksums. `SHA256SUMS.txt` lists every artifact for both
+architectures, so skip the ones you did not download:
 
 ```bash
-sha256sum -c SHA256SUMS.txt
+sha256sum -c --ignore-missing SHA256SUMS.txt
 ```
 
 Each binary also has a signed SPDX 2.3 SBOM attestation that lists the pinned
@@ -255,6 +258,7 @@ make clean    # Remove build artifacts
 ```
 static-tools/
 ├── Makefile                    # Root build entry point (`TOOLS` list)
+├── builder/                    # Digest-pinned builder image (Dockerfile, apk-lock.txt)
 ├── docs/SLSA.md                # Build L3 claim and verification
 ├── deps/                       # Shared static library prefix
 │   ├── Dockerfile
@@ -266,6 +270,7 @@ static-tools/
 │       ├── Makefile
 │       └── versions.mk
 ├── .github/workflows/
+│   ├── builder.yml           # Publish and attest the builder image
 │   ├── ci.yml
 │   ├── release.yml
 │   └── attest.yml            # Isolated provenance + SBOM signing (workflow_call)
@@ -346,7 +351,7 @@ BIND **9.16.50** is a permanent pin. There is no plan to upgrade BIND, drop `dig
 
 ### `file` does not find `magic.mgc` next to the binary
 
-libmagic does not search next to the binary. Use `file -m magic.mgc-<arch>` or set `MAGIC=` to the shipped magic file.
+libmagic does not search next to the binary. Pass the shipped magic file with `file -m` or set `MAGIC=`. The file must be named with a `.mgc` suffix: `file -m magic.mgc-<arch>` fails with "could not find any valid magic files!", so save it as `magic.mgc` first.
 
 ### `wget` 1.25.0 is the newest release and still has unfixed CVEs
 
