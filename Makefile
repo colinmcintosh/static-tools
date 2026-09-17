@@ -35,9 +35,9 @@ TOOLS := mtr drill dig curl wget iperf3 tcpdump ncat openssl rsync socat jq fpin
 # for every other tool, including the single-extra cases like mtr/file).
 MULTI_NAME_TOOLS := iproute2 sysstat libcap
 
-# Release artifact names (2 architectures × 36 binaries). Canonical list:
+# Release artifact names (2 architectures × 37 binaries). Canonical list:
 # release/attest workflows check the built set against it (make print-artifacts).
-EXTRA_ARTIFACTS := mtr-packet magic.mgc nmap-services ip ss getcap setcap mpstat iostat pidstat sar
+EXTRA_ARTIFACTS := mtr-packet magic.mgc nmap-services ip ss getcap setcap mpstat iostat pidstat sar sadc
 ARTIFACTS := $(foreach arch,amd64 arm64,$(foreach tool,$(filter-out $(MULTI_NAME_TOOLS),$(TOOLS)),$(tool)-$(arch)) $(foreach bin,$(EXTRA_ARTIFACTS),$(bin)-$(arch)))
 
 # Versioning Format: YYYY.MM.MINOR

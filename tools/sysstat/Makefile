@@ -1,4 +1,4 @@
-# sysstat build targets (mpstat, iostat, pidstat, sar)
+# sysstat build targets (mpstat, iostat, pidstat, sar, sadc)
 
 SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
@@ -16,13 +16,13 @@ PLATFORM_arm64 := linux/arm64
 ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
 ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
 
-BINARIES := mpstat iostat pidstat sar
+BINARIES := mpstat iostat pidstat sar sadc
 
 .PHONY: build build-all test verify-static clean info
 
 build: $(addprefix $(TOOL_OUT_DIR)/$(ARCH)/,$(BINARIES))
 
-$(TOOL_OUT_DIR)/$(ARCH)/mpstat $(TOOL_OUT_DIR)/$(ARCH)/iostat $(TOOL_OUT_DIR)/$(ARCH)/pidstat $(TOOL_OUT_DIR)/$(ARCH)/sar &: Dockerfile versions.mk
+$(TOOL_OUT_DIR)/$(ARCH)/mpstat $(TOOL_OUT_DIR)/$(ARCH)/iostat $(TOOL_OUT_DIR)/$(ARCH)/pidstat $(TOOL_OUT_DIR)/$(ARCH)/sar $(TOOL_OUT_DIR)/$(ARCH)/sadc &: Dockerfile versions.mk inject-sadc-sibling.sh sadc-sibling.inc
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
@@ -40,11 +40,10 @@ $(TOOL_OUT_DIR)/$(ARCH)/mpstat $(TOOL_OUT_DIR)/$(ARCH)/iostat $(TOOL_OUT_DIR)/$(
 build-all:
 	$(foreach arch,$(ARCHS),$(MAKE) build ARCH=$(arch);)
 
-# Test the binaries. Each of the 4 binaries reads /proc directly and does not
-# need sadc: mpstat/iostat/pidstat sample /proc themselves, and sar's -V path
-# does not touch the data collector either. (sar's live-collection mode,
-# `sar <interval> <count>`, execs a separate `sadc` binary at runtime; sadc is
-# out of scope for this tool, so only `sar -V` is exercised here.)
+# mpstat/iostat/pidstat sample /proc themselves. sar live-samples by exec'ing
+# sadc: this build looks next to /proc/self/exe first, then SADC_PATH, then
+# PATH (see sadc-sibling.inc). Historical `sar -f` still needs a data file
+# from a long-running collector and is not exercised here.
 test: build
 	@echo "==> Testing mpstat binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/mpstat || \
@@ -97,6 +96,17 @@ test: build
 		echo "$$OUTPUT" | grep -qi "Command" || \
 		(echo "ERROR: pidstat 1 1 failed: $$OUTPUT" && exit 1)
 	@echo "✓ pidstat 1 1 works (live /proc read)"
+	@echo "==> Testing sadc binary for $(ARCH)"
+	@test -x $(TOOL_OUT_DIR)/$(ARCH)/sadc || \
+		(echo "ERROR: sadc binary not found or not executable" && exit 1)
+	@echo "✓ sadc binary exists"
+	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/sadc
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/sadc:/sadc:ro \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /sadc -V 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "sysstat" || \
+		(echo "ERROR: sadc -V failed: $$OUTPUT" && exit 1)
+	@echo "✓ sadc -V works"
 	@echo "==> Testing sar binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/sar || \
 		(echo "ERROR: sar binary not found or not executable" && exit 1)
@@ -108,6 +118,23 @@ test: build
 		echo "$$OUTPUT" | grep -qi "sysstat" || \
 		(echo "ERROR: sar -V failed: $$OUTPUT" && exit 1)
 	@echo "✓ sar -V works"
+	@echo "==> Testing sar live sampling finds sibling sadc (zero-library alpine)"
+	@if OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/sar:/sar:ro \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /sar 1 1 2>&1); then \
+		echo "ERROR: sar 1 1 succeeded without sadc: $$OUTPUT" && exit 1; \
+	else \
+		echo "$$OUTPUT" | grep -qi "data collector\|sadc" || \
+			(echo "ERROR: sar without sadc failed for an unexpected reason: $$OUTPUT" && exit 1); \
+	fi
+	@echo "✓ sar 1 1 without sadc fails (does not pick up a host collector)"
+	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/sar:/sar:ro \
+		-v $(TOOL_OUT_DIR)/$(ARCH)/sadc:/sadc:ro \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /sar 1 1 2>&1) && \
+		echo "$$OUTPUT" | grep -qi "CPU\|%idle\|%user" || \
+		(echo "ERROR: sar 1 1 with sibling sadc failed: $$OUTPUT" && exit 1)
+	@echo "✓ sar 1 1 works (live sampling via sibling sadc)"
 	@echo "==> All sysstat tests passed"
 
 verify-static: build

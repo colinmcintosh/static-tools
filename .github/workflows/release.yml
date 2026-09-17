@@ -213,7 +213,7 @@ jobs:
               scripts/assert-static-elf.sh "dist/iproute2/${ARCH}/ip" "dist/iproute2/${ARCH}/ss"
               ;;
             sysstat)
-              scripts/assert-static-elf.sh "dist/sysstat/${ARCH}/mpstat" "dist/sysstat/${ARCH}/iostat" "dist/sysstat/${ARCH}/pidstat" "dist/sysstat/${ARCH}/sar"
+              scripts/assert-static-elf.sh "dist/sysstat/${ARCH}/mpstat" "dist/sysstat/${ARCH}/iostat" "dist/sysstat/${ARCH}/pidstat" "dist/sysstat/${ARCH}/sar" "dist/sysstat/${ARCH}/sadc"
               ;;
             libcap)
               scripts/assert-static-elf.sh "dist/libcap/${ARCH}/getcap" "dist/libcap/${ARCH}/setcap"
@@ -245,7 +245,7 @@ jobs:
               done
               ;;
             sysstat)
-              for file in mpstat iostat pidstat sar; do
+              for file in mpstat iostat pidstat sar sadc; do
                 mv "$file" "$file-${{ matrix.arch }}"
               done
               ;;

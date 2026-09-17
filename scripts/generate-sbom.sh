@@ -42,6 +42,7 @@ ARTIFACT_TOOL = {
     "iostat": "sysstat",
     "pidstat": "sysstat",
     "sar": "sysstat",
+    "sadc": "sysstat",
 }
 
 # SBOM_LIBS keys -> variable prefix in deps/versions.mk

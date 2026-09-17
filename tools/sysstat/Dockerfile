@@ -13,19 +13,25 @@ ARG TARGETARCH
 ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fno-tree-slp-vectorize" \
     LDFLAGS="-static-pie"
 
+# sar live-samples by exec'ing a separate sadc. Upstream only looks at the
+# compile-time SADC_PATH and then PATH, so a same-directory `./sar` would
+# miss a sibling sadc and could pick up a host collector. This insert tries
+# dirname(/proc/self/exe)/sadc first (see sadc-sibling.inc).
+COPY inject-sadc-sibling.sh sadc-sibling.inc /tmp/
+
 WORKDIR /src
 RUN wget -q "https://github.com/sysstat/sysstat/archive/refs/tags/v${SYSSTAT_VERSION}.tar.gz" -O sysstat.tar.gz && \
     echo "${SYSSTAT_SOURCE_SHA256}  sysstat.tar.gz" | sha256sum -c -
 
 # sysstat ships a pre-generated ./configure (no autoreconf/bootstrap step).
-# --disable-sensors/--disable-pcp drop lm-sensors/PCP support (unused by the
-# 4 binaries built here regardless: sadc is the only sysstat binary that
-# links libsensors, and sadf is the only one that links PCP). --disable-nls
-# drops gettext. The rest skip cron/systemd/man/doc install machinery that
-# `make mpstat iostat pidstat sar` never touches anyway, since it builds
-# only those 4 targets (and their shared objects/archives), not `make
-# install` or the default `all` target (which also builds sadc, sadf,
-# tapestat, cifsiostat and locales).
+# --disable-sensors/--disable-pcp drop lm-sensors/PCP support. sadc is the
+# only sysstat binary that *can* link libsensors; we still disable that so
+# the shipped collector stays libc-only. sadf is the only one that links
+# PCP and is not built. --disable-nls drops gettext. The rest skip
+# cron/systemd/man/doc install machinery that `make mpstat iostat pidstat
+# sar sadc` never touches anyway, since it builds only those 5 targets
+# (and their shared objects/archives), not `make install` or the default
+# `all` target (which also builds sadf, tapestat, cifsiostat and locales).
 #
 # CFLAGS is re-passed on the `make` command line, not just to configure:
 # Makefile.in unconditionally appends "-Wall -pipe -O2 -fno-tree-slp-vectorize"
@@ -36,10 +42,12 @@ RUN wget -q "https://github.com/sysstat/sysstat/archive/refs/tags/v${SYSSTAT_VER
 # precedence rules). -fno-tree-slp-vectorize is kept regardless because
 # upstream added it as a real bug workaround, not a style choice (CHANGES:
 # "Turn off gcc's tree-slp-vectorize option which was making sadf crash");
-# the vulnerable code (rd_stats.c, common.c, ...) is shared with the 4
+# the vulnerable code (rd_stats.c, common.c, ...) is shared with the 5
 # binaries built here.
-RUN tar xzf sysstat.tar.gz && \
+RUN set -eu && \
+    tar xzf sysstat.tar.gz && \
     cd sysstat-${SYSSTAT_VERSION} && \
+    sh /tmp/inject-sadc-sibling.sh sar.c /tmp/sadc-sibling.inc && \
     ./configure \
         --disable-nls \
         --disable-sensors \
@@ -49,17 +57,14 @@ RUN tar xzf sysstat.tar.gz && \
         --disable-compress-manpg \
         CFLAGS="${CFLAGS}" \
         LDFLAGS="${LDFLAGS}" && \
-    make -j"$(nproc)" CFLAGS="${CFLAGS}" mpstat iostat pidstat sar && \
-    ! readelf -l mpstat | grep -q INTERP && \
-    readelf -h mpstat | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -l iostat | grep -q INTERP && \
-    readelf -h iostat | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -l pidstat | grep -q INTERP && \
-    readelf -h pidstat | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -l sar | grep -q INTERP && \
-    readelf -h sar | grep -q 'Type:[[:space:]]*DYN' && \
+    make -j"$(nproc)" CFLAGS="${CFLAGS}" mpstat iostat pidstat sar sadc && \
+    for bin in mpstat iostat pidstat sar sadc; do \
+        ! readelf -l "${bin}" | grep -q INTERP; \
+        readelf -h "${bin}" | grep -q 'Type:[[:space:]]*DYN'; \
+    done && \
     mkdir -p /out && \
-    cp mpstat iostat pidstat sar /out/ && \
+    cp mpstat iostat pidstat sar sadc /out/ && \
+    strip /out/mpstat /out/iostat /out/pidstat /out/sar /out/sadc && \
     cd /out && sha256sum * > SHA256SUMS
 
 FROM scratch AS export

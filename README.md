@@ -34,16 +34,16 @@ The provenance is intended to prove the supply chain between upstream source (th
 | htop | 3.5.3 | Interactive process viewer |
 | iproute2 | 7.2.0 | Modern network configuration and socket inspection (ships `ip` and `ss`; no `iproute2` binary) |
 | lsof | 4.99.7 | List open files and network sockets per process |
-| nmap | 7.991 | Network discovery and port scanner (ships `nmap-services`; NSE/Lua scripting, Nping, Ndiff, and Zenmap are disabled) |
+| nmap | 7.991 | Network discovery and port scanner (ships `nmap-services`; NSE/Lua, Nping, Ndiff, Zenmap, and the `-sV`/`-O` data files are omitted) |
 | zstd | 1.5.7 | Fast modern compression tool |
 | nethogs | 0.9.0 | Per-process network bandwidth monitor (iftop substitute; see Known Issues) |
 | whois | 5.6.6 | WHOIS/RDAP domain and IP registration lookup client (built without IDN support) |
 | less | 704 | Terminal pager for viewing text a screen at a time |
-| sysstat | 12.8.0 | Live CPU/disk/process statistics (ships `mpstat`, `iostat`, `pidstat`, `sar`; no `sysstat` binary) |
+| sysstat | 12.8.0 | Live CPU/disk/process statistics (ships `mpstat`, `iostat`, `pidstat`, `sar`, and `sadc`; no `sysstat` binary) |
 | tree | 2.3.2 | Recursive directory listing as a tree |
 | libcap | 2.78 | Inspect and set Linux file capabilities (ships `getcap` and `setcap`; no `libcap` binary) |
 
-Each tool lives in `tools/<name>/` with its version pinned in `versions.mk`. Release artifacts are named `<tool>-<arch>` (for example `curl-amd64`). Some tool directories ship multiple binaries, none of which need match the directory name: `mtr` also ships `mtr-packet-<arch>`; `file` also ships `magic.mgc-<arch>`; `nmap` also ships `nmap-services-<arch>`; `iproute2` ships `ip-<arch>` and `ss-<arch>`; `libcap` ships `getcap-<arch>` and `setcap-<arch>`; `sysstat` ships `mpstat-<arch>`, `iostat-<arch>`, `pidstat-<arch>`, and `sar-<arch>`.
+Each tool lives in `tools/<name>/` with its version pinned in `versions.mk`. Release artifacts are named `<tool>-<arch>` (for example `curl-amd64`). Some tool directories ship multiple binaries, none of which need match the directory name: `mtr` also ships `mtr-packet-<arch>`; `file` also ships `magic.mgc-<arch>`; `nmap` also ships `nmap-services-<arch>`; `iproute2` ships `ip-<arch>` and `ss-<arch>`; `libcap` ships `getcap-<arch>` and `setcap-<arch>`; `sysstat` ships `mpstat-<arch>`, `iostat-<arch>`, `pidstat-<arch>`, `sar-<arch>`, and `sadc-<arch>`.
 
 ## Supported Architectures
 
@@ -185,7 +185,7 @@ Requires the [GitHub CLI](https://cli.github.com/). Checks `SHA256SUMS.txt` and 
   for f in *-"$a"; do
     d=${f%-$a}
     mv "$f" "$d"
-    [ "$d" = magic.mgc ] || chmod +x "$d"
+    [ "$d" = magic.mgc ] || [ "$d" = nmap-services ] || chmod +x "$d"
   done
 )
 ```
@@ -215,7 +215,7 @@ No `gh`. This only downloads the latest release assets for your architecture and
   for f in *-"$a"; do
     d=${f%-$a}
     mv "$f" "$d"
-    [ "$d" = magic.mgc ] || chmod +x "$d"
+    [ "$d" = magic.mgc ] || [ "$d" = nmap-services ] || chmod +x "$d"
   done
 )
 ```
@@ -399,13 +399,13 @@ Built without libidn2: the builder image has no `pkg-config`, and `whois` does n
 
 `less` is statically linked against the ncurses/terminfo build already in the shared deps prefix, but no terminfo database is bundled in the binary. It works best on a target system that already has one (e.g. `/usr/share/terminfo`) or sets `$TERMINFO`/`$TERMINFO_DIRS`; otherwise ncurses falls back to built-in generic capabilities for common `$TERM` values.
 
-### `sar` only supports live sampling, not historical data
+### `sar` live sampling needs the shipped `sadc` next to it
 
-`sadc`, sysstat's data collector daemon, is not shipped. `sar <interval> <count>` (live sampling) works; `sar -f <datafile>` (reading historical data collected by a running `sadc`) does not. `mpstat`, `iostat`, and `pidstat` are unaffected, since they always sample `/proc` directly.
+`sar <interval> <count>` execs a separate `sadc` binary. This build looks for `sadc` next to the `sar` executable (`dirname(/proc/self/exe)/sadc`), then the compile-time `SADC_PATH`, then `PATH`. The download one-liners rename `sar-<arch>` and `sadc-<arch>` into the same directory, so `./sar 1 5` works. Historical mode (`sar` with no interval, or `sar -f <datafile>`) still needs a data file produced by a long-running collector; this release does not ship cron/systemd collection. `mpstat`, `iostat`, and `pidstat` are unaffected, since they always sample `/proc` directly.
 
 ### `nmap` ships without NSE, Nping, Ndiff, or Zenmap
 
-Built with `--without-liblua --without-nping --without-ndiff --without-zenmap --without-ncat` to avoid pulling in new dependencies for this static build (`ncat` is already its own tool in this repo, built from the same nmap source tarball). Version/OS detection (`-sV`/`-O`) and the scripting engine (`--script`) are unavailable as a result; ordinary port scans and service-name lookups via the shipped `nmap-services` are unaffected. One upstream source oversight (a `close_nse()` call in `nmap.cc` missing the `#ifndef NOLUA` guard used at every other NSE call site in the same file) is patched at build time; see the comment in `tools/nmap/Dockerfile`.
+Built with `--without-liblua --without-nping --without-ndiff --without-zenmap --without-ncat` to avoid pulling in new dependencies for this static build (`ncat` is already its own tool in this repo, built from the same nmap source tarball). The scripting engine (`--script`) is unavailable because Lua/NSE is disabled. Version detection (`-sV`) and OS detection (`-O`) do not use Lua; they are unavailable here because this build does not ship `nmap-service-probes` or `nmap-os-db`. Ordinary port scans and service-name lookups via the shipped `nmap-services` are unaffected. One upstream source oversight (a `close_nse()` call in `nmap.cc` missing the `#ifndef NOLUA` guard used at every other NSE call site in the same file) is patched at build time; see the comment in `tools/nmap/Dockerfile`.
 
 ## License
 
