@@ -30,6 +30,8 @@ PLATFORM_arm64 := linux/arm64
 ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
 ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
 
+include ../../scripts/dns-test-server.mk
+
 .PHONY: deps
 deps:
 	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
@@ -62,7 +64,7 @@ build-all:
 
 # Test the binary
 .PHONY: test
-test: build
+test: build $(DNS_TEST_SERVER)
 	@echo "==> Testing dig binary for $(ARCH)"
 	@# Check if binary exists and is executable
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/dig || \
@@ -84,11 +86,13 @@ test: build
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: dig -h failed" && exit 1)
 	@echo "✓ dig -h works"
-	@# Run a basic DNS query
-	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+	@# Run a DNS query against a network-isolated loopback server
+	@$(DOCKER) run --rm --network none --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /dig @1.1.1.1 example.com A +short 2>&1) && \
-		echo "$$OUTPUT" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" || \
+		-v $(DNS_TEST_SERVER):/dns-test-server:ro \
+		-v $(CURDIR)/../../scripts/test-local-dns.sh:/test-local-dns.sh:ro \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
+		/bin/sh /test-local-dns.sh dig /dig /dns-test-server || \
 		(echo "ERROR: dig DNS query failed" && exit 1)
 	@echo "✓ dig DNS query works"
 	@echo "==> All dig tests passed"
