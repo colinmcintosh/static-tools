@@ -120,15 +120,18 @@ jobs:
           for digest_file in *; do
             refs+=("${IMAGE}@sha256:${digest_file}")
           done
+          create_log=$(mktemp)
           docker buildx imagetools create \
             -t "${IMAGE}:sha-${short_sha}" \
             -t "${IMAGE}:${date_tag}" \
-            "${refs[@]}"
-          digest=$(docker buildx imagetools inspect "${IMAGE}:sha-${short_sha}" \
-            | awk '/^Digest:/{print $2; exit}')
+            "${refs[@]}" 2>&1 | tee "${create_log}"
+          # imagetools inspect can fail on a just-pushed GHCR index (exit 255).
+          # The create log prints the index digest as it is pushed.
+          digest=$(grep -oE 'pushing sha256:[0-9a-f]{64} to [^[:space:]]+:sha-' "${create_log}" \
+            | grep -oE 'sha256:[0-9a-f]{64}' | tail -1)
           if [[ -z "${digest}" || "${digest}" != sha256:* ]]; then
-            echo "failed to read index digest" >&2
-            docker buildx imagetools inspect "${IMAGE}:sha-${short_sha}" >&2
+            echo "failed to read index digest from imagetools create" >&2
+            cat "${create_log}" >&2
             exit 1
           fi
           echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
