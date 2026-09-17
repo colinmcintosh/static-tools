@@ -285,9 +285,9 @@ Every release includes `SHA256SUMS.txt`. Provenance is stored as GitHub Artifact
 
 ## Known Issues
 
-### `dig` is BIND 9.16.50 (upstream EOL)
+### `dig` stays on BIND 9.16.50 (upstream EOL)
 
-BIND **9.16.50** is the last autoconf line that still links statically. Newer BIND uses Meson and is not built here. 9.16 is upstream-EOL.
+BIND **9.16.50** is a permanent pin. There is no plan to upgrade BIND, drop `dig`, or replace it. Later branches do not support a static-pie `dig`. 9.16 is upstream-EOL.
 
 ### `file` does not find `magic.mgc` next to the binary
 

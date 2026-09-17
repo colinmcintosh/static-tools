@@ -110,4 +110,4 @@ info:
 	@echo "Source: BIND $(BIND9_VERSION)"
 	@echo "URL: $(BIND9_SOURCE_URL)"
 	@echo "SHA256: $(BIND9_SOURCE_SHA256)"
-	@echo "Note: Using BIND 9.16.x (last autoconf version) for static compilation support"
+	@echo "Note: BIND 9.16.x is a permanent pin; later branches do not support static-pie dig"
