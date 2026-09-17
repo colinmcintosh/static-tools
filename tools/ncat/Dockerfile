@@ -1,22 +1,14 @@
 # syntax=docker/dockerfile:1.7
 
-ARG ALPINE_VERSION=3.21
-ARG ALPINE_DIGEST
+ARG BUILDER_IMAGE
+ARG BUILDER_DIGEST
 
-FROM alpine:${ALPINE_VERSION}@${ALPINE_DIGEST} AS builder
+FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG NMAP_VERSION
 ARG NMAP_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
-
-# Compiler + bzip2 for the nmap tarball. OpenSSL/zlib/libpcap come from the prefix.
-# The decompressor is unpinned: it only unpacks a SHA256-verified tarball.
-# hadolint ignore=DL3018
-RUN apk add --no-cache \
-    build-base=0.5-r3 \
-    bzip2 \
-    linux-headers=6.6-r1
 
 COPY --from=deps / ${PREFIX}
 

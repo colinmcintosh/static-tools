@@ -33,8 +33,8 @@ $(TOOL_OUT_DIR)/$(ARCH)/tcpdump: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libpc
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
 		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
-		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
+		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
+		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg TCPDUMP_VERSION=$(TCPDUMP_VERSION) \
 		--build-arg TCPDUMP_SOURCE_SHA256=$(TCPDUMP_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \

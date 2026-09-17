@@ -1,16 +1,13 @@
 # syntax=docker/dockerfile:1.7
 
-ARG ALPINE_VERSION=3.21
-ARG ALPINE_DIGEST
+ARG BUILDER_IMAGE
+ARG BUILDER_DIGEST
 
-FROM alpine:${ALPINE_VERSION}@${ALPINE_DIGEST} AS builder
+FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG JQ_VERSION
 ARG JQ_SOURCE_SHA256
 ARG TARGETARCH
-
-RUN apk add --no-cache \
-    build-base=0.5-r3
 
 ENV CFLAGS="-Os -fPIE -ftls-model=local-exec -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"

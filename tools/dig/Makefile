@@ -42,8 +42,8 @@ $(TOOL_OUT_DIR)/$(ARCH)/dig: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libuv.a
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
 		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
-		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
+		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
+		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg BIND9_VERSION=$(BIND9_VERSION) \
 		--build-arg BIND9_SOURCE_SHA256=$(BIND9_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \

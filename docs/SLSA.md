@@ -9,7 +9,14 @@ bit-for-bit reproducible (Build L4-class).
 ## How
 
 - Builds run on GitHub-hosted ephemeral runners (`ubuntu-24.04` and
-  `ubuntu-24.04-arm`), inside digest-pinned Alpine containers.
+  `ubuntu-24.04-arm`), inside a digest-pinned builder image
+  (`ghcr.io/colinmcintosh/static-tools/builder`). That image is Alpine
+  plus the compiler toolchain; it is published and attested by
+  [`.github/workflows/builder.yml`](../.github/workflows/builder.yml).
+  Rebuild it from that workflow, then copy the new index digest into
+  [`deps/versions.mk`](../deps/versions.mk) and refresh
+  [`builder/apk-lock.txt`](../builder/apk-lock.txt). Tool and deps
+  Dockerfiles must not `apk add`.
 - Upstream tarballs are fetched over HTTPS and verified with SHA256 pins in
   each tool's `versions.mk` (shared libraries live in `deps/versions.mk`).
 - The shared static prefix is built once per architecture in the same release

@@ -1,21 +1,14 @@
 # syntax=docker/dockerfile:1.7
 
-ARG ALPINE_VERSION=3.21
-ARG ALPINE_DIGEST
+ARG BUILDER_IMAGE
+ARG BUILDER_DIGEST
 
-FROM alpine:${ALPINE_VERSION}@${ALPINE_DIGEST} AS builder
+FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG MTR_VERSION
 ARG MTR_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
-
-# Compiler + autotools. ncurses and libcap come from the SHA256-pinned prefix.
-RUN apk add --no-cache \
-    autoconf=2.72-r0 \
-    automake=1.17-r0 \
-    build-base=0.5-r3 \
-    linux-headers=6.6-r1
 
 COPY --from=deps / ${PREFIX}
 

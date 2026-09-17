@@ -65,8 +65,8 @@ selected=()
 while IFS= read -r file; do
   [[ -n "$file" ]] || continue
   case "$file" in
-    deps|deps/*)
-      echo "Shared deps changed; building all tools" >&2
+    deps|deps/*|builder|builder/*)
+      echo "Shared deps or builder image changed; building all tools" >&2
       json_array "${all_tools[@]}"
       exit 0
       ;;

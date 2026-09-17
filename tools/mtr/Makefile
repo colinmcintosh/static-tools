@@ -42,8 +42,8 @@ $(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet &: Dockerfile ver
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
 		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
-		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
+		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
+		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg MTR_VERSION=$(MTR_VERSION) \
 		--build-arg MTR_SOURCE_SHA256=$(MTR_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
