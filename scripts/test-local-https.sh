@@ -19,13 +19,16 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-"${openssl_bin}" req -x509 -newkey rsa:2048 -nodes \
+if ! output=$("${openssl_bin}" req -x509 -newkey rsa:2048 -nodes \
 	-keyout "${key}" \
 	-out "${cert}" \
 	-days 1 \
 	-subj /CN=127.0.0.1 \
-	-addext subjectAltName=IP:127.0.0.1 \
-	>/dev/null 2>&1
+	-addext subjectAltName=IP:127.0.0.1 2>&1); then
+	echo "${output}" >&2
+	echo "failed to generate HTTPS test certificate" >&2
+	exit 1
+fi
 
 "${openssl_bin}" s_server \
 	-accept "127.0.0.1:${port}" \
@@ -59,14 +62,20 @@ fi
 url="https://127.0.0.1:${port}/"
 case "${client}" in
 	curl)
-		status=$("${client_bin}" \
+		if ! status=$("${client_bin}" \
 			--cacert "${cert}" \
 			--max-time 5 \
 			--silent \
+			--show-error \
 			--output /dev/null \
 			--write-out '%{http_code}' \
-			"${url}")
-		test "${status}" = 200
+			"${url}" 2>/tmp/static-tools-test-curl.err) ||
+			[ "${status}" != 200 ]; then
+			echo "curl returned HTTP status: ${status:-none}" >&2
+			cat /tmp/static-tools-test-curl.err >&2
+			cat "${server_log}" >&2
+			exit 1
+		fi
 		;;
 	wget)
 		if ! output=$("${client_bin}" \

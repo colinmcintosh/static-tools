@@ -1,5 +1,7 @@
 DNS_TEST_SCRIPTS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-DNS_TEST_SERVER_OUT_DIR := $(OUT_DIR)/test-fixtures/dns/$(ARCH)
+# Per-tool output path: dig and drill each build their own copy so parallel
+# `make -j test` runs never write the same file concurrently.
+DNS_TEST_SERVER_OUT_DIR := $(OUT_DIR)/test-fixtures/$(notdir $(TOOL_OUT_DIR))/dns/$(ARCH)
 DNS_TEST_SERVER := $(DNS_TEST_SERVER_OUT_DIR)/dns-test-server
 
 $(DNS_TEST_SERVER): \
