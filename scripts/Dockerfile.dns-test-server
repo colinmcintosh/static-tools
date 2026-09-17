@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BUILDER_IMAGE
+ARG BUILDER_DIGEST
+
+FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
+
+WORKDIR /src
+COPY dns-test-server.c .
+
+RUN cc \
+	-Os \
+	-static-pie \
+	-fPIE \
+	-fstack-protector-strong \
+	-D_FORTIFY_SOURCE=2 \
+	-Wall \
+	-Wextra \
+	-Werror \
+	-o /dns-test-server \
+	dns-test-server.c && \
+	! readelf -l /dns-test-server | grep -q INTERP && \
+	readelf -h /dns-test-server | grep -q 'Type:[[:space:]]*DYN'
+
+FROM scratch AS export
+COPY --from=builder /dns-test-server /
