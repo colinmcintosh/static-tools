@@ -11,6 +11,7 @@ on:
     branches: [main]
     paths:
       - builder/Dockerfile
+      - deps/versions.mk
       - .github/workflows/builder.yml
 
 permissions: {}

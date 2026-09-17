@@ -9,14 +9,12 @@
 BUILDER_IMAGE := ghcr.io/colinmcintosh/static-tools/builder
 BUILDER_DIGEST := sha256:0a05b4b3eb538722e3dad7b2ea3265cebe0b6f553bf1d81476a3637850197cc4
 
-ALPINE_VERSION := 3.21
-# Multi-arch index digest of alpine:3.21 (currently 3.21.7). Docker
+ALPINE_VERSION := 3.24
+# Multi-arch index digest of alpine:3.24 (currently 3.24.1). Docker
 # selects the platform from --platform / TARGETARCH, so one pin covers
 # amd64 and arm64 and cannot be paired with the wrong architecture.
 # The per-arch names stay so existing Makefiles keep working.
-# 3.21 EOL is 2026-11-01; migration to 3.24 is tracked in
-# https://github.com/colinmcintosh/static-tools/issues/44
-ALPINE_DIGEST := sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+ALPINE_DIGEST := sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 ALPINE_DIGEST_AMD64 := $(ALPINE_DIGEST)
 ALPINE_DIGEST_ARM64 := $(ALPINE_DIGEST)
 

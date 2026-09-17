@@ -383,10 +383,6 @@ CVE-2026-58469 (7.5, metalink) does **not** apply: this build is `-metalink`.
 
 Both require running as a server (`iperf3 -s`). Client-only use is not exposed.
 
-### Alpine 3.21 reaches EOL on 2026-11-01
-
-The builder image is still based on Alpine 3.21.7. Rebuild it from 3.24 before EOL; that work is tracked in [#44](https://github.com/colinmcintosh/static-tools/issues/44).
-
 ### `nethogs` ships instead of `iftop`
 
 iftop has had no tagged release from an actively maintained fork in over a decade: the original ex-parrot.com site is dead, the current maintainer's self-hosted `code.blinkace.com/pdw/iftop` has commits but zero tags, and every GitHub mirror is stale. `nethogs` 0.9.0 is an actively maintained equivalent (per-process rather than per-connection) and ships instead.

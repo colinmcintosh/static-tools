@@ -5,8 +5,8 @@
 # Rebuild with .github/workflows/builder.yml, then pin the new index
 # digest in deps/versions.mk and refresh builder/apk-lock.txt.
 
-ARG ALPINE_VERSION=3.21
-ARG ALPINE_DIGEST=sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+ARG ALPINE_VERSION=3.24
+ARG ALPINE_DIGEST=sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 FROM alpine:${ALPINE_VERSION}@${ALPINE_DIGEST}
 
