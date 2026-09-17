@@ -27,7 +27,7 @@ The provenance is intended to prove the supply chain between upstream source (th
 | socat | 1.8.1.3 | Multipurpose relay (SOcket CAT) |
 | jq | 1.8.2 | Command-line JSON processor |
 | fping | 5.4 | Ping multiple hosts in parallel |
-| strace | 6.17 | System-call tracer |
+| strace | 7.2 | System-call tracer |
 | ncdu | 1.22 | NCurses disk-usage analyzer |
 | file | 5.46 | File type identification (includes `magic.mgc`; save `magic.mgc-<arch>` as `magic.mgc`, then use `file -m magic.mgc` or `MAGIC=`) |
 | xxd | 1.3.16 | Hex dump utility (tinyxxd) |
