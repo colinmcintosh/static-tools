@@ -7,3 +7,8 @@ include ../../deps/versions.mk
 MTR_VERSION := 0.95
 MTR_SOURCE_URL := https://github.com/traviscross/mtr/archive/refs/tags/v$(MTR_VERSION).tar.gz
 MTR_SOURCE_SHA256 := 12490fb660ba5fb34df8c06a0f62b4f9cbd11a584fc3f6eceda0a99124e8596f
+
+# Prefix libraries statically linked into this artifact (SBOM).
+SBOM_LIBS := ncurses
+# mtr-packet is the unprivileged helper; it does not link ncurses.
+SBOM_LIBS_mtr-packet :=

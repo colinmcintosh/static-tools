@@ -29,6 +29,9 @@ OUT_DIR := $(CURDIR)/dist
 # All tools
 TOOLS := mtr drill dig curl wget iperf3 tcpdump ncat openssl rsync socat jq fping strace ncdu file xxd htop
 
+# Release artifact names (2 architectures × 18 tools + mtr-packet + magic.mgc)
+SBOM_ARTIFACTS := $(foreach arch,amd64 arm64,$(foreach tool,$(TOOLS),$(tool)-$(arch)) mtr-packet-$(arch) magic.mgc-$(arch))
+
 # Versioning Format: YYYY.MM.MINOR
 # YYYY = year, MM = zero-padded month, MINOR = release number within month
 YEAR := $(shell date +%Y)
@@ -131,6 +134,12 @@ clean:
 	$(MAKE) -C deps clean OUT_DIR=$(OUT_DIR);
 	$(foreach tool,$(TOOLS),$(MAKE) -C tools/$(tool) clean;)
 
+# Pin-file SPDX SBOMs for every release artifact (no build required)
+.PHONY: sbom
+sbom:
+	@echo "==> Generating SBOMs"
+	scripts/generate-sbom.sh --out-dir $(OUT_DIR)/sboms $(SBOM_ARTIFACTS)
+
 # List available tools
 .PHONY: list
 list:
@@ -150,6 +159,7 @@ help:
 	@echo "  make test           Run tests for all tools"
 	@echo "  make test-curl      Run tests for a specific tool"
 	@echo "  make lint           Lint Dockerfiles with hadolint"
+	@echo "  make sbom           Generate SPDX SBOMs from versions.mk pins"
 	@echo "  make clean          Remove build artifacts"
 	@echo "  make list           List available tools"
 	@echo "  make help           Show this help message"

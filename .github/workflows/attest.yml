@@ -1,4 +1,4 @@
-# Isolated provenance signing (SLSA Build L3).
+# Isolated provenance and SBOM signing (SLSA Build L3).
 # workflow_call only so the build job cannot mint attestations.
 name: Attest
 
@@ -23,25 +23,83 @@ jobs:
           path: artifacts
           merge-multiple: false
 
-      - name: Collect binaries
+      - name: Collect subjects
         run: |
           set -euo pipefail
           mkdir -p subjects
           find artifacts -type f \( -name '*-amd64' -o -name '*-arm64' \) ! -path 'artifacts/deps-prefix-*/*' -exec cp {} subjects/ \;
-          mapfile -t bins < <(find subjects -maxdepth 1 -type f -printf '%f\n' | sort)
-          binary_count=${#bins[@]}
-          # 2 architectures × (18 tools + mtr-packet + magic.mgc)
-          expected=40
-          echo "Binaries to attest (${binary_count}):"
-          printf '  %s\n' "${bins[@]}"
-          if [ "${binary_count}" -ne "${expected}" ]; then
-            echo "::error::Expected ${expected} binaries to attest, found ${binary_count}"
+          cp artifacts/release-manifests/SHA256SUMS.txt subjects/SHA256SUMS.txt
+          mapfile -t subjects < <(find subjects -maxdepth 1 -type f -printf '%f\n' | sort)
+          subject_count=${#subjects[@]}
+          # 2 architectures × (18 tools + mtr-packet + magic.mgc) + SHA256SUMS.txt
+          expected=41
+          echo "Subjects to attest (${subject_count}):"
+          printf '  %s\n' "${subjects[@]}"
+          if [ "${subject_count}" -ne "${expected}" ]; then
+            echo "::error::Expected ${expected} subjects to attest, found ${subject_count}"
             exit 1
           fi
 
       - name: Generate build provenance attestation
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: |
-            subjects/*-amd64
-            subjects/*-arm64
+          subject-path: subjects/*
+
+  attest-sbom:
+    name: Attest SBOM ${{ matrix.extra_artifact != '' && format('{0}-{1}', matrix.extra_artifact, matrix.arch) || format('{0}-{1}', matrix.tool, matrix.arch) }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [mtr, drill, dig, curl, wget, iperf3, tcpdump, ncat, openssl, rsync, socat, jq, fping, strace, ncdu, file, xxd, htop]
+        arch: [amd64, arm64]
+        extra_artifact: ['']
+        include:
+          - tool: mtr
+            arch: amd64
+            extra_artifact: mtr-packet
+          - tool: mtr
+            arch: arm64
+            extra_artifact: mtr-packet
+          - tool: file
+            arch: amd64
+            extra_artifact: magic.mgc
+          - tool: file
+            arch: arm64
+            extra_artifact: magic.mgc
+    steps:
+      - name: Download binary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ matrix.tool }}-${{ matrix.arch }}
+          path: subjects
+
+      - name: Download release manifests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-manifests
+          path: manifests
+
+      - name: Resolve artifact name
+        id: artifact
+        run: |
+          set -euo pipefail
+          if [ -n "${{ matrix.extra_artifact }}" ]; then
+            name="${{ matrix.extra_artifact }}-${{ matrix.arch }}"
+          else
+            name="${{ matrix.tool }}-${{ matrix.arch }}"
+          fi
+          echo "name=${name}" >> "${GITHUB_OUTPUT}"
+          test -f "subjects/${name}"
+          test -f "manifests/sboms/${name}.spdx.json"
+
+      - name: Generate SBOM attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: subjects/${{ steps.artifact.outputs.name }}
+          sbom-path: manifests/sboms/${{ steps.artifact.outputs.name }}.spdx.json

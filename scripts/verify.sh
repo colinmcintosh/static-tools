@@ -14,7 +14,7 @@
 #
 # Examples:
 #   ./scripts/verify.sh v2026.09.3 curl-amd64
-#   ./scripts/verify.sh v2026.09.3 curl-amd64 curl-arm64
+#   ./scripts/verify.sh v2026.09.3 curl-amd64 SHA256SUMS.txt
 #
 
 set -euo pipefail
@@ -31,7 +31,7 @@ produced from any other ref is rejected.
 
 Examples:
   $0 v2026.09.3 curl-amd64
-  $0 v2026.09.3 curl-amd64 curl-arm64
+  $0 v2026.09.3 curl-amd64 SHA256SUMS.txt
 
 Requires the GitHub CLI: https://cli.github.com/
 USAGE
