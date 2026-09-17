@@ -159,7 +159,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tool: [mtr, drill, dig, curl, wget, iperf3, tcpdump, ncat, openssl, rsync, socat, jq, fping, strace, ncdu, file, xxd, htop]
+        tool: [mtr, drill, dig, curl, wget, iperf3, tcpdump, ncat, openssl, rsync, socat, jq, fping, strace, ncdu, file, xxd, htop, iproute2, lsof, nmap, zstd, nethogs, whois, less, sysstat, tree, libcap]
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -202,24 +202,66 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
-          scripts/assert-static-elf.sh "dist/${TOOL}/${ARCH}/${TOOL}"
-          if [ "${TOOL}" = "mtr" ]; then
-            scripts/assert-static-elf.sh "dist/mtr/${ARCH}/mtr-packet"
-          fi
+          case "${TOOL}" in
+            mtr)
+              scripts/assert-static-elf.sh "dist/mtr/${ARCH}/mtr" "dist/mtr/${ARCH}/mtr-packet"
+              ;;
+            file)
+              scripts/assert-static-elf.sh "dist/file/${ARCH}/file"
+              ;;
+            iproute2)
+              scripts/assert-static-elf.sh "dist/iproute2/${ARCH}/ip" "dist/iproute2/${ARCH}/ss"
+              ;;
+            sysstat)
+              scripts/assert-static-elf.sh "dist/sysstat/${ARCH}/mpstat" "dist/sysstat/${ARCH}/iostat" "dist/sysstat/${ARCH}/pidstat" "dist/sysstat/${ARCH}/sar" "dist/sysstat/${ARCH}/sadc"
+              ;;
+            libcap)
+              scripts/assert-static-elf.sh "dist/libcap/${ARCH}/getcap" "dist/libcap/${ARCH}/setcap"
+              ;;
+            nmap)
+              scripts/assert-static-elf.sh "dist/nmap/${ARCH}/nmap"
+              ;;
+            *)
+              scripts/assert-static-elf.sh "dist/${TOOL}/${ARCH}/${TOOL}"
+              ;;
+          esac
 
       - name: Rename artifacts with architecture suffix
         run: |
           cd dist/${{ matrix.tool }}/${{ matrix.arch }}
-          if [ "${{ matrix.tool }}" = "mtr" ]; then
-            for file in mtr mtr-packet; do
-              mv "$file" "$file-${{ matrix.arch }}"
-            done
-          elif [ "${{ matrix.tool }}" = "file" ]; then
-            mv file "file-${{ matrix.arch }}"
-            mv magic.mgc "magic.mgc-${{ matrix.arch }}"
-          else
-            mv ${{ matrix.tool }} ${{ matrix.tool }}-${{ matrix.arch }}
-          fi
+          case "${{ matrix.tool }}" in
+            mtr)
+              for file in mtr mtr-packet; do
+                mv "$file" "$file-${{ matrix.arch }}"
+              done
+              ;;
+            file)
+              mv file "file-${{ matrix.arch }}"
+              mv magic.mgc "magic.mgc-${{ matrix.arch }}"
+              ;;
+            iproute2)
+              for file in ip ss; do
+                mv "$file" "$file-${{ matrix.arch }}"
+              done
+              ;;
+            sysstat)
+              for file in mpstat iostat pidstat sar sadc; do
+                mv "$file" "$file-${{ matrix.arch }}"
+              done
+              ;;
+            libcap)
+              for file in getcap setcap; do
+                mv "$file" "$file-${{ matrix.arch }}"
+              done
+              ;;
+            nmap)
+              mv nmap "nmap-${{ matrix.arch }}"
+              mv nmap-services "nmap-services-${{ matrix.arch }}"
+              ;;
+            *)
+              mv ${{ matrix.tool }} ${{ matrix.tool }}-${{ matrix.arch }}
+              ;;
+          esac
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

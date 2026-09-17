@@ -27,11 +27,18 @@ BUILDX ?= $(DOCKER) buildx
 OUT_DIR := $(CURDIR)/dist
 
 # All tools
-TOOLS := mtr drill dig curl wget iperf3 tcpdump ncat openssl rsync socat jq fping strace ncdu file xxd htop
+TOOLS := mtr drill dig curl wget iperf3 tcpdump ncat openssl rsync socat jq fping strace ncdu file xxd htop iproute2 lsof nmap zstd nethogs whois less sysstat tree libcap
 
-# Release artifact names (2 architectures × 18 tools + mtr-packet + magic.mgc).
-# Canonical list: release/attest workflows check the built set against it.
-ARTIFACTS := $(foreach arch,amd64 arm64,$(foreach tool,$(TOOLS),$(tool)-$(arch)) mtr-packet-$(arch) magic.mgc-$(arch))
+# Tools that ship no binary matching their own directory name: every binary
+# they produce has to come from EXTRA_ARTIFACTS instead of the generic
+# per-tool mapping below (which assumes dir name == a produced binary, true
+# for every other tool, including the single-extra cases like mtr/file).
+MULTI_NAME_TOOLS := iproute2 sysstat libcap
+
+# Release artifact names (2 architectures × 37 binaries). Canonical list:
+# release/attest workflows check the built set against it (make print-artifacts).
+EXTRA_ARTIFACTS := mtr-packet magic.mgc nmap-services ip ss getcap setcap mpstat iostat pidstat sar sadc
+ARTIFACTS := $(foreach arch,amd64 arm64,$(foreach tool,$(filter-out $(MULTI_NAME_TOOLS),$(TOOLS)),$(tool)-$(arch)) $(foreach bin,$(EXTRA_ARTIFACTS),$(bin)-$(arch)))
 
 # Versioning Format: YYYY.MM.MINOR
 # YYYY = year, MM = zero-padded month, MINOR = release number within month
