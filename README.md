@@ -27,7 +27,7 @@ The provenance is intended to prove the supply chain between upstream source (th
 | socat | 1.8.1.3 | Multipurpose relay (SOcket CAT) |
 | jq | 1.8.2 | Command-line JSON processor |
 | fping | 5.4 | Ping multiple hosts in parallel |
-| strace | 6.17 | System-call tracer |
+| strace | 7.2 | System-call tracer |
 | ncdu | 1.22 | NCurses disk-usage analyzer |
 | file | 5.46 | File type identification (includes `magic.mgc`; save `magic.mgc-<arch>` as `magic.mgc`, then use `file -m magic.mgc` or `MAGIC=`) |
 | xxd | 1.3.16 | Hex dump utility (tinyxxd) |
@@ -382,10 +382,6 @@ CVE-2026-58469 (7.5, metalink) does **not** apply: this build is `-metalink`.
 - CVE-2026-71218 (5.3) — `JSON_read()` allocates on a peer-controlled length with no upper bound
 
 Both require running as a server (`iperf3 -s`). Client-only use is not exposed.
-
-### Alpine 3.21 reaches EOL on 2026-11-01
-
-The builder image is still based on Alpine 3.21.7. Rebuild it from 3.24 before EOL; that work is tracked in [#44](https://github.com/colinmcintosh/static-tools/issues/44).
 
 ### `nethogs` ships instead of `iftop`
 

@@ -16,7 +16,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     CPPFLAGS="-I${PREFIX}/include" \
     LDFLAGS="-L${PREFIX}/lib" \
-    CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+    CFLAGS="-Os -std=gnu17 -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
 
