@@ -2,7 +2,10 @@
 # Generate per-artifact SPDX 2.3 JSON from versions.mk pins.
 #
 # Usage:
-#   ./scripts/generate-sbom.sh --out-dir DIR ARTIFACT [ARTIFACT...]
+#   ./scripts/generate-sbom.sh [--tag TAG] --out-dir DIR ARTIFACT [ARTIFACT...]
+#
+# TAG goes into each documentNamespace so a dependency-only pin bump yields a
+# new namespace. It defaults to `git describe --tags --always --dirty`.
 #
 # ARTIFACT is a release name such as curl-amd64, magic.mgc-arm64, or
 # mtr-packet-amd64. Linked prefix libraries come from SBOM_LIBS in the
@@ -10,20 +13,15 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-export GENERATE_SBOM_ROOT="${ROOT}"
 
-if [[ $# -lt 3 || "$1" != "--out-dir" ]]; then
-    echo "Usage: $0 --out-dir DIR ARTIFACT [ARTIFACT...]" >&2
-    exit 2
-fi
-
-exec python3 - "$@" <<'PY'
+exec python3 - "${ROOT}" "$@" <<'PY'
 """Emit deterministic SPDX 2.3 JSON from versions.mk pins."""
 from __future__ import annotations
 
+import argparse
 import json
-import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -182,14 +180,13 @@ def package(
     }
 
 
-def generate_one(artifact: str, root: Path) -> dict:
+def generate_one(artifact: str, root: Path, deps: dict[str, str], tag: str) -> dict:
     match = ARTIFACT_RE.match(artifact)
     if not match:
         die(f"artifact '{artifact}' must look like name-amd64 or name-arm64")
     name = match.group(1)
     tool_path = tool_dir_for(name, root)
     tool_raw = parse_mk(tool_path / "versions.mk")
-    deps = load_deps(root)
     version, url, sha = tool_source(tool_raw, deps)
     libs = sbom_libs(name, tool_raw)
 
@@ -217,7 +214,7 @@ def generate_one(artifact: str, root: Path) -> dict:
         "dataLicense": "CC0-1.0",
         "SPDXID": "SPDXRef-DOCUMENT",
         "name": artifact,
-        "documentNamespace": f"{NAMESPACE_BASE}/{artifact}/{version}",
+        "documentNamespace": f"{NAMESPACE_BASE}/{tag}/{artifact}",
         "creationInfo": {
             "created": CREATED,
             "creators": [
@@ -231,16 +228,32 @@ def generate_one(artifact: str, root: Path) -> dict:
     }
 
 
+def default_tag(root: Path) -> str:
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), "describe", "--tags", "--always", "--dirty"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        die("could not determine a tag with git describe; pass --tag")
+    return out.stdout.strip()
+
+
 def main(argv: list[str]) -> None:
-    if len(argv) < 3 or argv[0] != "--out-dir":
-        die("Usage: generate-sbom.sh --out-dir DIR ARTIFACT [ARTIFACT...]")
-    out_dir = Path(argv[1])
-    artifacts = argv[2:]
-    root = Path(os.environ["GENERATE_SBOM_ROOT"])
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for artifact in artifacts:
-        doc = generate_one(artifact, root)
-        dest = out_dir / f"{artifact}.spdx.json"
+    root = Path(argv[0])
+    parser = argparse.ArgumentParser(prog="generate-sbom.sh")
+    parser.add_argument("--tag")
+    parser.add_argument("--out-dir", required=True, type=Path)
+    parser.add_argument("artifacts", nargs="+", metavar="ARTIFACT")
+    args = parser.parse_args(argv[1:])
+    tag = args.tag or default_tag(root)
+    deps = load_deps(root)
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+    for artifact in args.artifacts:
+        doc = generate_one(artifact, root, deps, tag)
+        dest = args.out_dir / f"{artifact}.spdx.json"
         dest.write_text(json.dumps(doc, indent=2, sort_keys=False) + "\n")
         print(dest)
 

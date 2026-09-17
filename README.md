@@ -74,7 +74,7 @@ gh attestation verify curl-amd64 \
   --deny-self-hosted-runners
 ```
 
-The same flags verify `SHA256SUMS.txt` (it is the 41st provenance subject):
+The same flags verify `SHA256SUMS.txt`, which is also a provenance subject:
 
 ```bash
 gh attestation verify SHA256SUMS.txt \
@@ -90,7 +90,11 @@ Or use the included wrapper (also requires `gh`; it does not bootstrap a verifie
 ./scripts/verify.sh v2026.09.3 curl-amd64 SHA256SUMS.txt
 ```
 
-Substitute the tag of the release you downloaded. Pinning the tag matters:
+Substitute the tag of the release you downloaded. `SHA256SUMS.txt` and SBOM attestations exist only for releases after
+`v2026.09.6`; against older tags the commands that use them fail with "no
+attestations found". Use a newer tag for those examples.
+
+Pinning the tag matters:
 `--cert-identity` binds both the signing workflow and the ref it ran from,
 while `--signer-workflow` matches only the workflow path and would accept an
 attestation produced from any branch.
@@ -266,6 +270,7 @@ static-tools/
 │   ├── release.yml
 │   └── attest.yml            # Isolated provenance + SBOM signing (workflow_call)
 └── scripts/
+    ├── collect-release-bins.sh # Collect release binaries; check against make print-artifacts
     ├── generate-sbom.sh      # Pin-file SPDX SBOMs for release artifacts
     └── verify.sh
 ```
@@ -300,12 +305,12 @@ To add a new tool (e.g., `dig`):
 
 5. Add `dig` to the `TOOLS` list in the root `Makefile`
 
-6. Update the CI/release workflow matrices (including the `attest-sbom`
-   matrix in `attest.yml`), and bump the expected counts (40 binaries /
-   41 provenance subjects) in `release.yml` / `attest.yml` if you add extra
-   artifacts (like `mtr-packet` or `magic.mgc`). Extra artifacts that share
-   a tool tarball but not its libraries need `SBOM_LIBS_<name> :=` in that
-   tool's `versions.mk`.
+6. Update the CI/release build matrices. The release checks the built
+   binaries against `make print-artifacts` and derives the `attest-sbom`
+   matrix from them, so there are no counts to bump. Extra artifacts (like
+   `mtr-packet` or `magic.mgc`) must be added to `ARTIFACTS` in the root
+   `Makefile`; if they share a tool tarball but not its libraries, they also
+   need `SBOM_LIBS_<name> :=` in that tool's `versions.mk`.
 
 ## Supply Chain Security
 

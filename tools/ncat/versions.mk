@@ -8,4 +8,5 @@ NMAP_SOURCE_URL := https://nmap.org/dist/nmap-$(NMAP_VERSION).tar.bz2
 NMAP_SOURCE_SHA256 := a5d507f29437bef3bedd4771ff9aaa8fc1c2a109ddba1f5b1cf12027456929be
 
 # Prefix libraries statically linked into this artifact (SBOM).
-SBOM_LIBS := openssl zlib libpcap
+# -lz is on the link line but nothing references zlib (libssh2 is disabled).
+SBOM_LIBS := openssl libpcap

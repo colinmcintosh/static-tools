@@ -29,8 +29,9 @@ OUT_DIR := $(CURDIR)/dist
 # All tools
 TOOLS := mtr drill dig curl wget iperf3 tcpdump ncat openssl rsync socat jq fping strace ncdu file xxd htop
 
-# Release artifact names (2 architectures × 18 tools + mtr-packet + magic.mgc)
-SBOM_ARTIFACTS := $(foreach arch,amd64 arm64,$(foreach tool,$(TOOLS),$(tool)-$(arch)) mtr-packet-$(arch) magic.mgc-$(arch))
+# Release artifact names (2 architectures × 18 tools + mtr-packet + magic.mgc).
+# Canonical list: release/attest workflows check the built set against it.
+ARTIFACTS := $(foreach arch,amd64 arm64,$(foreach tool,$(TOOLS),$(tool)-$(arch)) mtr-packet-$(arch) magic.mgc-$(arch))
 
 # Versioning Format: YYYY.MM.MINOR
 # YYYY = year, MM = zero-padded month, MINOR = release number within month
@@ -138,7 +139,11 @@ clean:
 .PHONY: sbom
 sbom:
 	@echo "==> Generating SBOMs"
-	scripts/generate-sbom.sh --out-dir $(OUT_DIR)/sboms $(SBOM_ARTIFACTS)
+	scripts/generate-sbom.sh --out-dir $(OUT_DIR)/sboms $(ARTIFACTS)
+
+.PHONY: print-artifacts
+print-artifacts:
+	@echo $(ARTIFACTS)
 
 # List available tools
 .PHONY: list

@@ -250,35 +250,19 @@ jobs:
           merge-multiple: false
 
       - name: Generate checksums and SBOMs
+        env:
+          TAG: ${{ needs.verify-tag.outputs.tag }}
         run: |
           set -euo pipefail
-          mkdir -p subjects sboms
-          find artifacts -type f \( -name '*-amd64' -o -name '*-arm64' \) ! -path 'artifacts/deps-prefix-*/*' -exec cp {} subjects/ \;
-          mapfile -t bins < <(find subjects -maxdepth 1 -type f -printf '%f\n' | sort)
-          binary_count=${#bins[@]}
-          # 2 architectures × (18 tools + mtr-packet + magic.mgc)
-          expected=40
-          echo "Release binaries (${binary_count}):"
+          # Fails unless the built set is exactly `make print-artifacts`.
+          mapfile -t bins < <(scripts/collect-release-bins.sh artifacts subjects)
+          echo "Release binaries (${#bins[@]}):"
           printf '  %s\n' "${bins[@]}"
-          if [ "${binary_count}" -ne "${expected}" ]; then
-            echo "::error::Expected ${expected} binaries, found ${binary_count}"
-            exit 1
-          fi
           (
             cd subjects
             sha256sum "${bins[@]}" > ../SHA256SUMS.txt
           )
-          sum_count="$(wc -l < SHA256SUMS.txt)"
-          if [ "${sum_count}" -ne "${binary_count}" ]; then
-            echo "::error::SHA256SUMS.txt has ${sum_count} lines, expected ${binary_count}"
-            exit 1
-          fi
-          scripts/generate-sbom.sh --out-dir sboms "${bins[@]}"
-          sbom_count="$(find sboms -maxdepth 1 -name '*.spdx.json' | wc -l)"
-          if [ "${sbom_count}" -ne "${expected}" ]; then
-            echo "::error::Expected ${expected} SBOMs, found ${sbom_count}"
-            exit 1
-          fi
+          scripts/generate-sbom.sh --tag "${TAG}" --out-dir sboms "${bins[@]}"
 
       - name: Upload release manifests
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -336,21 +320,12 @@ jobs:
       - name: Prepare release assets
         run: |
           set -euo pipefail
-          mkdir -p release
-          find artifacts -type f \( -name '*-amd64' -o -name '*-arm64' \) ! -path 'artifacts/deps-prefix-*/*' -exec cp {} release/ \;
-          test -f artifacts/release-manifests/SHA256SUMS.txt
-          cp artifacts/release-manifests/SHA256SUMS.txt release/SHA256SUMS.txt
-          cd release
-          mapfile -t bins < <(find . -maxdepth 1 -type f \( -name '*-amd64' -o -name '*-arm64' \) -printf '%f\n' | sort)
+          mapfile -t bins < <(scripts/collect-release-bins.sh artifacts release)
           binary_count=${#bins[@]}
-          # 2 architectures × (18 tools + mtr-packet + magic.mgc)
-          expected=40
           echo "Release binaries (${binary_count}):"
           printf '  %s\n' "${bins[@]}"
-          if [ "${binary_count}" -ne "${expected}" ]; then
-            echo "::error::Expected ${expected} binaries, found ${binary_count}"
-            exit 1
-          fi
+          cp artifacts/release-manifests/SHA256SUMS.txt release/SHA256SUMS.txt
+          cd release
           # Publish the attested SHA256SUMS.txt bytes; do not regenerate.
           sha256sum -c SHA256SUMS.txt
           sum_count="$(wc -l < SHA256SUMS.txt)"
@@ -397,11 +372,11 @@ jobs:
             Or use the wrapper script:
 
             ```bash
-            ./scripts/verify.sh ${{ needs.verify-tag.outputs.tag }} curl-amd64
+            ./scripts/verify.sh ${{ needs.verify-tag.outputs.tag }} curl-amd64 SHA256SUMS.txt
             ```
 
             `--cert-identity` pins both the signing workflow and the tag it ran
-            from (including for `SHA256SUMS.txt`, the 41st provenance subject).
+            from (including for `SHA256SUMS.txt`, which is also a provenance subject).
             `--signer-workflow` matches only the workflow path, so on its
             own it would accept an attestation produced from any ref.
 
@@ -425,6 +400,8 @@ jobs:
               --predicate-type https://spdx.dev/Document/v2.3 \
               --format json
             ```
+
+            Or: `VERIFY_PREDICATE_TYPE=https://spdx.dev/Document/v2.3 ./scripts/verify.sh ${{ needs.verify-tag.outputs.tag }} curl-amd64`
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
@@ -463,23 +440,11 @@ jobs:
           VERIFY_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          # Fails unless the published set is exactly `make print-artifacts`.
+          scripts/collect-release-bins.sh published "${RUNNER_TEMP}/published-bins" >/dev/null
           cd published
           test -f SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
           mapfile -t bins < <(find . -maxdepth 1 -type f \( -name '*-amd64' -o -name '*-arm64' \) -printf '%f\n' | sort)
-          expected=40
-          if [ "${#bins[@]}" -ne "${expected}" ]; then
-            echo "::error::Expected ${expected} published binaries, found ${#bins[@]}"
-            exit 1
-          fi
           ../scripts/verify.sh "${TAG}" "${bins[@]}" SHA256SUMS.txt
-          cert_identity="https://github.com/${VERIFY_REPO}/.github/workflows/attest.yml@refs/tags/${TAG}"
-          for f in "${bins[@]}"; do
-            echo "Verifying SBOM for ${f}..."
-            gh attestation verify "${f}" \
-              --repo "${VERIFY_REPO}" \
-              --cert-identity "${cert_identity}" \
-              --source-ref "refs/tags/${TAG}" \
-              --deny-self-hosted-runners \
-              --predicate-type https://spdx.dev/Document/v2.3
-          done
+          VERIFY_PREDICATE_TYPE=https://spdx.dev/Document/v2.3 ../scripts/verify.sh "${TAG}" "${bins[@]}"

@@ -40,7 +40,7 @@ openssl_ver=$(sed -n 's/^OPENSSL_VERSION := //p' "${ROOT}/deps/versions.mk")
 nghttp2_ver=$(sed -n 's/^NGHTTP2_VERSION := //p' "${ROOT}/deps/versions.mk")
 [[ -n "${openssl_ver}" && -n "${nghttp2_ver}" ]] || fail "could not read pinned library versions"
 
-"${SCRIPT}" --out-dir "${TMP}/one" curl-amd64 xxd-amd64 mtr-packet-amd64 magic.mgc-arm64
+"${SCRIPT}" --tag v0000.00.0 --out-dir "${TMP}/one" curl-amd64 xxd-amd64 mtr-packet-amd64 magic.mgc-arm64
 
 curl_sbom="${TMP}/one/curl-amd64.spdx.json"
 xxd_sbom="${TMP}/one/xxd-amd64.spdx.json"
@@ -57,11 +57,13 @@ assert "curl-amd64" in names
 assert names["openssl"]["versionInfo"] == sys.argv[2], names["openssl"]
 assert names["nghttp2"]["versionInfo"] == sys.argv[3], names["nghttp2"]
 assert "zlib" in names
+assert "zstd" in names
+assert doc["documentNamespace"].endswith("/v0000.00.0/curl-amd64"), doc["documentNamespace"]
 rels = {(r["spdxElementId"], r["relationshipType"], r["relatedSpdxElement"]) for r in doc["relationships"]}
 assert ("SPDXRef-DOCUMENT", "DESCRIBES", "SPDXRef-Package-curl-amd64") in rels
 assert ("SPDXRef-Package-curl-amd64", "DEPENDS_ON", "SPDXRef-Package-openssl") in rels
 PY
-assert_ok "curl-amd64 SBOM lists OpenSSL ${openssl_ver} and nghttp2 ${nghttp2_ver}"
+assert_ok "curl-amd64 SBOM lists OpenSSL ${openssl_ver}, nghttp2 ${nghttp2_ver}, and zstd; namespace carries the tag"
 
 python3 - "${xxd_sbom}" <<'PY'
 import json, sys
@@ -90,23 +92,24 @@ assert "zlib" not in names
 PY
 assert_ok "magic.mgc-arm64 SBOM does not list zlib"
 
-artifacts=()
-for arch in amd64 arm64; do
-    for tool in mtr drill dig curl wget iperf3 tcpdump ncat openssl rsync socat jq fping strace ncdu file xxd htop; do
-        artifacts+=("${tool}-${arch}")
-    done
-    artifacts+=("mtr-packet-${arch}" "magic.mgc-${arch}")
-done
-assert_eq "${#artifacts[@]}" "40" "fixture list is 40 artifacts"
+read -r -a artifacts < <(make -s --no-print-directory -C "${ROOT}" print-artifacts)
+assert_eq "${#artifacts[@]}" "$(( 2 * ($(make -s --no-print-directory -C "${ROOT}" list | sed -n 's/^Available tools: //p' | wc -w) + 2) ))" \
+    "print-artifacts is 2 architectures x (TOOLS + mtr-packet + magic.mgc)"
 
-"${SCRIPT}" --out-dir "${TMP}/all" "${artifacts[@]}"
+"${SCRIPT}" --tag v0000.00.0 --out-dir "${TMP}/all" "${artifacts[@]}"
 got=$(find "${TMP}/all" -name '*.spdx.json' | wc -l)
-assert_eq "${got}" "40" "generating the full list produces 40 files"
+assert_eq "${got}" "${#artifacts[@]}" "generating every release artifact produces one file each"
 
-if "${SCRIPT}" --out-dir "${TMP}/bad" not-an-artifact >/dev/null 2>"${TMP}/err"; then
-    fail "expected unknown artifact to fail"
+if "${SCRIPT}" --tag v0000.00.0 --out-dir "${TMP}/bad" not-an-artifact >/dev/null 2>"${TMP}/err"; then
+    fail "expected malformed artifact name to fail"
 fi
-grep -q "unknown artifact\|must look like" "${TMP}/err" || fail "unexpected error for bad artifact: $(cat "${TMP}/err")"
-assert_ok "unknown artifact is rejected"
+grep -q "must look like" "${TMP}/err" || fail "unexpected error for malformed artifact: $(cat "${TMP}/err")"
+assert_ok "malformed artifact name is rejected"
+
+if "${SCRIPT}" --tag v0000.00.0 --out-dir "${TMP}/bad" nosuchtool-amd64 >/dev/null 2>"${TMP}/err"; then
+    fail "expected unknown tool to fail"
+fi
+grep -q "unknown artifact" "${TMP}/err" || fail "unexpected error for unknown tool: $(cat "${TMP}/err")"
+assert_ok "unknown tool is rejected"
 
 echo "generate-sbom tests passed"

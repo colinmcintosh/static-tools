@@ -7,4 +7,5 @@ SOCAT_SOURCE_URL := https://deb.debian.org/debian/pool/main/s/socat/socat_$(SOCA
 SOCAT_SOURCE_SHA256 := 25bc6476292b2e614220989c77b0b6fca87bb2525d9747b31a6639b1fb602418
 
 # Prefix libraries statically linked into this artifact (SBOM).
-SBOM_LIBS := openssl zlib
+# -lz is on the link line but nothing references zlib, so it is not pulled in.
+SBOM_LIBS := openssl

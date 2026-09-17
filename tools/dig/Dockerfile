@@ -34,8 +34,7 @@ RUN tar xf bind.tar.xz && \
         --disable-linux-caps \
         --with-openssl="${PREFIX}" \
         --with-libxml2=no \
-        --with-libuv="${PREFIX}" \
-        --with-nghttp2="${PREFIX}" && \
+        --with-libuv="${PREFIX}" && \
     find . -name Makefile -exec sed -i 's/ -Wl,--export-dynamic//g; s/-Wl,--export-dynamic//g' {} + && \
     cd lib/dns/ && make -j"$(nproc)" && \
     cd ../bind9/ && make -j"$(nproc)" && \

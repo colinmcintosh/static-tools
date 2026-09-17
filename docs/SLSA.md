@@ -31,7 +31,7 @@ bit-for-bit reproducible (Build L4-class).
   from the build job is what satisfies Build L3. The same workflow signs a
   per-binary SPDX 2.3 SBOM attestation (`sbom-path`); that is a second
   predicate, not a substitute for provenance. `SHA256SUMS.txt` is generated
-  in a `contents: read` manifests job and is the 41st provenance subject.
+  in a `contents: read` manifests job and is also a provenance subject.
 - GitHub Actions must be pinned to a full commit SHA
   (`sha_pinning_required`). Dependabot watches the `github-actions`
   ecosystem weekly
@@ -54,7 +54,9 @@ bit-for-bit reproducible (Build L4-class).
    ```
 
    Or: `./scripts/verify.sh v2026.09.3 curl-amd64 SHA256SUMS.txt` (requires
-   the GitHub CLI). `SHA256SUMS.txt` is attested as the 41st subject.
+   the GitHub CLI). `SHA256SUMS.txt` is attested alongside the binaries.
+   `SHA256SUMS.txt` and SBOM attestations exist only for releases after
+   `v2026.09.6`; use a newer tag for those examples.
 
    `--signer-workflow` is not sufficient on its own. It matches only
    `<owner>/<repo>/<path>` and discards the `@<ref>` portion of the certificate
@@ -72,7 +74,8 @@ bit-for-bit reproducible (Build L4-class).
 
 3. SBOM (pinned tool tarball and linked prefix libraries). Default
    `gh attestation verify` checks SLSA provenance; pass `--predicate-type`
-   for the SPDX attestation:
+   for the SPDX attestation (or set `VERIFY_PREDICATE_TYPE` for
+   `scripts/verify.sh`):
 
    ```bash
    gh attestation verify curl-amd64 \
