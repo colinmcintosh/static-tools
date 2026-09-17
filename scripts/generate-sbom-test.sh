@@ -93,8 +93,13 @@ PY
 assert_ok "magic.mgc-arm64 SBOM does not list zlib"
 
 read -r -a artifacts < <(make -s --no-print-directory -C "${ROOT}" print-artifacts)
-assert_eq "${#artifacts[@]}" "$(( 2 * ($(make -s --no-print-directory -C "${ROOT}" list | sed -n 's/^Available tools: //p' | wc -w) + 2) ))" \
-    "print-artifacts is 2 architectures x (TOOLS + mtr-packet + magic.mgc)"
+# Some tools (iproute2, libcap, sysstat) ship no binary matching their own
+# directory name, so "2 x (len(TOOLS) + fixed extras)" is not a valid
+# formula in general. Check the invariant that actually has to hold instead:
+# every basename appears for exactly amd64 and arm64, no more, no less.
+mapfile -t basenames < <(printf '%s\n' "${artifacts[@]}" | sed -E 's/-(amd64|arm64)$//' | sort -u)
+assert_eq "${#artifacts[@]}" "$(( 2 * ${#basenames[@]} ))" \
+    "print-artifacts has exactly an amd64 and an arm64 entry for every basename"
 
 "${SCRIPT}" --tag v0000.00.0 --out-dir "${TMP}/all" "${artifacts[@]}"
 got=$(find "${TMP}/all" -name '*.spdx.json' | wc -l)

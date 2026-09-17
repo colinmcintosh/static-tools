@@ -33,6 +33,15 @@ ARTIFACT_RE = re.compile(r"^(.+)-(amd64|arm64)$")
 ARTIFACT_TOOL = {
     "mtr-packet": "mtr",
     "magic.mgc": "file",
+    "nmap-services": "nmap",
+    "ip": "iproute2",
+    "ss": "iproute2",
+    "getcap": "libcap",
+    "setcap": "libcap",
+    "mpstat": "sysstat",
+    "iostat": "sysstat",
+    "pidstat": "sysstat",
+    "sar": "sysstat",
 }
 
 # SBOM_LIBS keys -> variable prefix in deps/versions.mk
