@@ -14,7 +14,7 @@ The provenance is intended to prove the supply chain between upstream source (th
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| mtr | 0.95 | Network diagnostic combining ping and traceroute (includes `mtr-packet`) |
+| mtr | 0.96 | Network diagnostic combining ping and traceroute (includes `mtr-packet`) |
 | drill | 1.9.2 | DNS lookup utility (ldns) - lightweight dig alternative |
 | dig | 9.16.50 | DNS lookup utility from BIND - full-featured DNS diagnostics |
 | curl | 8.22.0 | Command line URL transfer tool |
@@ -26,10 +26,10 @@ The provenance is intended to prove the supply chain between upstream source (th
 | rsync | 3.5.0 | Fast incremental file-copying tool |
 | socat | 1.8.1.3 | Multipurpose relay (SOcket CAT) |
 | jq | 1.8.2 | Command-line JSON processor |
-| fping | 5.4 | Ping multiple hosts in parallel |
+| fping | 5.5 | Ping multiple hosts in parallel |
 | strace | 7.2 | System-call tracer |
 | ncdu | 1.22 | NCurses disk-usage analyzer |
-| file | 5.46 | File type identification (includes `magic.mgc`; save `magic.mgc-<arch>` as `magic.mgc`, then use `file -m magic.mgc` or `MAGIC=`) |
+| file | 5.48 | File type identification (includes `magic.mgc`; save `magic.mgc-<arch>` as `magic.mgc`, then use `file -m magic.mgc` or `MAGIC=`) |
 | xxd | 1.3.16 | Hex dump utility (tinyxxd) |
 | htop | 3.5.3 | Interactive process viewer |
 | iproute2 | 7.2.0 | Modern network configuration and socket inspection (ships `ip` and `ss`; no `iproute2` binary) |
@@ -73,6 +73,25 @@ chmod +x file-amd64
 ./file-amd64 -m magic.mgc /path/to/something
 # or: MAGIC="$PWD/magic.mgc" ./file-amd64 /path/to/something
 ```
+
+### `mtr` and `fping` privileges
+
+`mtr-packet` and `fping` open raw sockets, so they need `CAP_NET_RAW`. Grant
+that capability to the file. Do **not** make them setuid root:
+
+```bash
+sudo setcap cap_net_raw+ep ./mtr-packet
+sudo setcap cap_net_raw+ep ./fping
+```
+
+Only `mtr-packet` needs the capability. `mtr` itself (which parses DNS and
+ASN replies) should stay unprivileged; it runs `mtr-packet` from `PATH`,
+then as `<mtr path>-packet`, then from `./mtr-packet`. Rename the downloaded
+`mtr-packet-<arch>` to `mtr-packet` so one of those lookups finds it.
+
+With `chmod u+s`, a memory-safety bug in code that parses network-supplied
+data becomes local privilege escalation instead of a crash. File capabilities
+limit the process to raw sockets.
 
 ### Verify Provenance (Recommended)
 
@@ -358,6 +377,19 @@ Every release includes `SHA256SUMS.txt`, which is itself a provenance subject. P
 ### `dig` stays on BIND 9.16.50 (upstream EOL)
 
 BIND **9.16.50** is a permanent pin. There is no plan to upgrade BIND, drop `dig`, or replace it. Later branches do not support a static-pie `dig`. 9.16 is upstream-EOL.
+
+### `ncdu` stays on 1.22 (final 1.x release)
+
+`ncdu` **1.22** is the last release of the C implementation. Upstream's active
+line is the 2.x Zig rewrite, which this builder cannot compile. 1.22 has no
+known CVEs; the pin is deliberate and will be revisited if one appears.
+
+### `mtr` 0.96 carries one upstream patch
+
+`mtr` 0.96 is the latest release, but a later upstream commit
+([48e1794](https://github.com/traviscross/mtr/commit/48e1794414d338ce47abc0f27c25ade8788af9c3))
+fixes a possible buffer overrun in the ASN lookup code. The build applies that
+commit on top of 0.96 (`tools/mtr/asn-clip-len.patch`) until a release includes it.
 
 ### `file` does not find `magic.mgc` next to the binary
 

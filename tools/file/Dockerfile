@@ -38,7 +38,7 @@ RUN tar xzf file.tar.gz && \
         --disable-libseccomp && \
     make -j"$(nproc)" && \
     mkdir -p /out && \
-    gcc -static-pie -o /out/file src/file.o src/seccomp.o src/.libs/libmagic.a -L${PREFIX}/lib -lz && \
+    gcc -static-pie -o /out/file src/file.o src/seccomp.o src/landlock.o src/.libs/libmagic.a -L${PREFIX}/lib -lz -lm && \
     cp magic/magic.mgc /out/magic.mgc && \
     strip /out/file && \
     ! readelf -l /out/file | grep -q INTERP && \

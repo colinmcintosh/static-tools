@@ -22,8 +22,13 @@ WORKDIR /src
 RUN wget -q "https://github.com/traviscross/mtr/archive/refs/tags/v${MTR_VERSION}.tar.gz" -O mtr.tar.gz && \
     echo "${MTR_SOURCE_SHA256}  mtr.tar.gz" | sha256sum -c -
 
+# Upstream 48e1794 (after 0.96): clip the res_query() length in the ASN
+# lookup to the answer buffer. Drop this when a release includes it.
+COPY asn-clip-len.patch /src/
+
 RUN tar xzf mtr.tar.gz && \
     cd mtr-${MTR_VERSION} && \
+    patch -p1 < /src/asn-clip-len.patch && \
     ./bootstrap.sh && \
     ./configure \
         --without-gtk \
