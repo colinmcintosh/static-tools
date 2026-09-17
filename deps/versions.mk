@@ -1,8 +1,12 @@
 # Shared static library prefix (built from upstream tarballs).
-# Official gcc images are Debian/glibc-only, so the compiler is Alpine's
-# musl gcc from a digest-pinned base image plus apk-pinned build-base
-# and linux-headers (those two have been stable on 3.21). C libraries
-# are NOT installed via apk; they are fetched by URL and verified with SHA256.
+# The compiler, static libc, autotools, and headers come from the
+# digest-pinned builder image (builder/Dockerfile). C libraries are
+# NOT installed via apk; they are fetched by URL and verified with SHA256.
+#
+# Rebuild the builder with .github/workflows/builder.yml, then copy the
+# printed BUILDER_DIGEST here and refresh builder/apk-lock.txt.
+
+BUILDER_IMAGE := ghcr.io/colinmcintosh/static-tools/builder
 
 ALPINE_VERSION := 3.21
 # Multi-arch index digest of alpine:3.21 (currently 3.21.7). Docker
