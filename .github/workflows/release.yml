@@ -18,8 +18,10 @@ permissions: {}
 
 # Tag push and workflow_dispatch of the same tag must not publish over each other.
 # cancel-in-progress is false so a started release is not aborted mid-publish.
+# GitHub expressions have no replace(); the dispatch input is the bare tag
+# (v1.0.0). The verify job still strips a refs/tags/ prefix if one is typed.
 concurrency:
-  group: release-${{ github.event_name == 'workflow_dispatch' && replace(inputs.tag, 'refs/tags/', '') || github.ref_name }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
