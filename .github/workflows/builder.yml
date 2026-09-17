@@ -1,0 +1,167 @@
+# Publish a multi-arch builder image. Intentional snapshot, not every push.
+# deps/ and tool builds pull this image; they do not run this workflow.
+name: Builder
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: builder
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}/builder
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: push
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          alpine_version=$(sed -n 's/^ALPINE_VERSION := //p' deps/versions.mk)
+          alpine_digest=$(sed -n 's/^ALPINE_DIGEST := //p' deps/versions.mk)
+          docker buildx build \
+            --platform "linux/${ARCH}" \
+            --file builder/Dockerfile \
+            --build-arg "ALPINE_VERSION=${alpine_version}" \
+            --build-arg "ALPINE_DIGEST=${alpine_digest}" \
+            --output "type=image,name=${IMAGE},push-by-digest=true,name-canonical=true,push=true" \
+            --metadata-file /tmp/meta.json \
+            builder/
+          digest=$(jq -r '.["containerimage.digest"]' /tmp/meta.json)
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Merge multi-arch index
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      digest: ${{ steps.manifest.outputs.digest }}
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list
+        id: manifest
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA::12}"
+          date_tag="builder-$(date -u +%Y%m%d)"
+          refs=()
+          for digest_file in *; do
+            refs+=("${IMAGE}@sha256:${digest_file}")
+          done
+          docker buildx imagetools create \
+            -t "${IMAGE}:sha-${short_sha}" \
+            -t "${IMAGE}:${date_tag}" \
+            "${refs[@]}"
+          digest=$(docker buildx imagetools inspect "${IMAGE}:sha-${short_sha}" \
+            | awk '/^Digest:/{print $2; exit}')
+          if [[ -z "${digest}" || "${digest}" != sha256:* ]]; then
+            echo "failed to read index digest" >&2
+            docker buildx imagetools inspect "${IMAGE}:sha-${short_sha}" >&2
+            exit 1
+          fi
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+          echo "short_sha=${short_sha}" >> "${GITHUB_OUTPUT}"
+          echo "date_tag=${date_tag}" >> "${GITHUB_OUTPUT}"
+          echo "Index digest: ${digest}"
+          echo "Tags: sha-${short_sha} ${date_tag}"
+
+      - name: Make package public
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api --method PATCH \
+            "/users/${{ github.repository_owner }}/packages/container/static-tools%2Fbuilder" \
+            -f visibility=public
+
+      - name: Attest builder image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
+          push-to-registry: true
+
+      - name: Summary
+        env:
+          DIGEST: ${{ steps.manifest.outputs.digest }}
+          SHORT_SHA: ${{ steps.manifest.outputs.short_sha }}
+          DATE_TAG: ${{ steps.manifest.outputs.date_tag }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Builder image"
+            echo ""
+            echo "Copy into \`deps/versions.mk\`:"
+            echo ""
+            echo '```'
+            echo "BUILDER_IMAGE := ${IMAGE}"
+            echo "BUILDER_DIGEST := ${DIGEST}"
+            echo '```'
+            echo ""
+            echo "Tags: \`${IMAGE}:sha-${SHORT_SHA}\`, \`${IMAGE}:${DATE_TAG}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
