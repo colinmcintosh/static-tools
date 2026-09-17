@@ -1,31 +1,16 @@
 # syntax=docker/dockerfile:1.7
 
 # Build a shared static prefix from SHA256-pinned upstream tarballs.
-# The only apk packages are the compiler toolchain; C libraries come from source.
+# The compiler comes from the digest-pinned builder image; C libraries
+# come from source. Do not apk add here.
 
-ARG ALPINE_VERSION=3.21
-ARG ALPINE_DIGEST
+ARG BUILDER_IMAGE
+ARG BUILDER_DIGEST
 
-FROM alpine:${ALPINE_VERSION}@${ALPINE_DIGEST} AS builder
+FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG TARGETARCH
 ARG PREFIX=/opt/st
-
-# build-base and linux-headers have been stable across Alpine 3.21; they
-# provide gcc/make/strip/musl-dev. Do not apk-add openssl/zlib/nghttp2/perl.
-# bzip2 is left unpinned on purpose: it only decompresses tarballs that are
-# already SHA256-verified, so its version cannot affect the output, while an
-# exact pin breaks the build as soon as Alpine bumps the revision.
-# hadolint ignore=DL3018
-RUN apk add --no-cache \
-    autoconf=2.72-r0 \
-    automake=1.17-r0 \
-    bison=3.8.2-r1 \
-    build-base=0.5-r3 \
-    bzip2 \
-    flex=2.6.4-r6 \
-    libtool=2.4.7-r3 \
-    linux-headers=6.6-r1
 
 ENV PATH="${PREFIX}/bin:${PATH}" \
     PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \

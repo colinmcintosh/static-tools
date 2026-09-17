@@ -1,18 +1,14 @@
 # syntax=docker/dockerfile:1.7
 
-ARG ALPINE_VERSION=3.21
-ARG ALPINE_DIGEST
+ARG BUILDER_IMAGE
+ARG BUILDER_DIGEST
 
-FROM alpine:${ALPINE_VERSION}@${ALPINE_DIGEST} AS builder
+FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG CURL_VERSION
 ARG CURL_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
-
-# Compiler only. OpenSSL, zlib, and nghttp2 come from the SHA256-pinned prefix.
-RUN apk add --no-cache \
-    build-base=0.5-r3
 
 # Additional context `deps` is the exported static prefix (see deps/Dockerfile).
 COPY --from=deps / ${PREFIX}

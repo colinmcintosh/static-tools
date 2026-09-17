@@ -42,8 +42,8 @@ $(TOOL_OUT_DIR)/$(ARCH)/drill: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
 		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
-		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
+		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
+		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg LDNS_VERSION=$(LDNS_VERSION) \
 		--build-arg LDNS_SOURCE_SHA256=$(LDNS_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \

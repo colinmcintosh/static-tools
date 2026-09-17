@@ -42,8 +42,8 @@ $(TOOL_OUT_DIR)/$(ARCH)/curl: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
 		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
-		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
+		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
+		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg CURL_VERSION=$(CURL_VERSION) \
 		--build-arg CURL_SOURCE_SHA256=$(CURL_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \

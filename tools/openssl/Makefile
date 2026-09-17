@@ -33,8 +33,8 @@ $(TOOL_OUT_DIR)/$(ARCH)/openssl: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libss
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
 		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
-		--build-arg ALPINE_DIGEST=$(ALPINE_DIGEST_$(ARCH)) \
+		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
+		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \
 		.

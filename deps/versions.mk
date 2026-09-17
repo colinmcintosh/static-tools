@@ -7,6 +7,7 @@
 # printed BUILDER_DIGEST here and refresh builder/apk-lock.txt.
 
 BUILDER_IMAGE := ghcr.io/colinmcintosh/static-tools/builder
+BUILDER_DIGEST := sha256:0a05b4b3eb538722e3dad7b2ea3265cebe0b6f553bf1d81476a3637850197cc4
 
 ALPINE_VERSION := 3.21
 # Multi-arch index digest of alpine:3.21 (currently 3.21.7). Docker

@@ -245,8 +245,8 @@ To add a new tool (e.g., `dig`):
    ```
 
 3. Create `tools/dig/Dockerfile` following the curl pattern:
-   - Use Alpine with musl for static linking, pinned by digest
-   - `COPY --from=deps` the shared static prefix (do not `apk add` C libraries) unless the tool does not link the prefix
+   - `FROM` the digest-pinned builder image (do not `apk add`)
+   - `COPY --from=deps` the shared static prefix unless the tool does not link the prefix
    - Verify source tarballs with SHA256
    - Compile with `-fPIE` / `-static-pie` so the binary is a static PIE
    - Assert linkage with `readelf` (no `INTERP`, `Type: DYN`), not `file`
@@ -271,13 +271,13 @@ Details are in [docs/SLSA.md](docs/SLSA.md). Summary:
 
 ### Version Pinning
 
-All dependencies are pinned for reproducibility:
+What determines the bits in a release binary is pinned:
 
-- **Base images**: Alpine pinned by the multi-arch index digest (`deps/versions.mk`)
-- **Source code**: Verified with SHA256 checksums
-- **GitHub Actions**: Pinned by commit SHA
-- **C libraries**: Built from upstream tarballs pinned by URL + SHA256 (`deps/versions.mk`)
-- **Compiler**: Alpine `build-base` / `linux-headers` on the digest-pinned base image (official `gcc` images are glibc/Debian-only)
+- **Builder image**: compiler, static libc, autotools, and headers, pinned by the multi-arch index digest (`BUILDER_DIGEST` in `deps/versions.mk`). Published and attested by `.github/workflows/builder.yml`.
+- **Source code**: tool tarballs verified with SHA256 checksums
+- **C libraries**: built from upstream tarballs pinned by URL + SHA256 (`deps/versions.mk`)
+- **GitHub Actions**: pinned by commit SHA
+- **Test runtime**: Alpine pinned by the multi-arch index digest (`ALPINE_DIGEST` in `deps/versions.mk`)
 
 ### Verification
 
@@ -315,7 +315,7 @@ Both require running as a server (`iperf3 -s`). Client-only use is not exposed.
 
 ### Alpine 3.21 reaches EOL on 2026-11-01
 
-The builder is pinned to the 3.21.7 index digest. Move to Alpine 3.24 before EOL; that work is tracked in [#44](https://github.com/colinmcintosh/static-tools/issues/44).
+The builder image is still based on Alpine 3.21.7. Rebuild it from 3.24 before EOL; that work is tracked in [#44](https://github.com/colinmcintosh/static-tools/issues/44).
 
 ## License
 

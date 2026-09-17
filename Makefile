@@ -117,6 +117,7 @@ lint:
 		chmod +x /tmp/hadolint; \
 		HADOLINT=/tmp/hadolint; \
 	fi; \
+	$$HADOLINT --config .hadolint.yaml builder/Dockerfile || exit 1; \
 	$$HADOLINT --config .hadolint.yaml deps/Dockerfile || exit 1; \
 	for tool in $(TOOLS); do \
 		$$HADOLINT --config .hadolint.yaml tools/$$tool/Dockerfile || exit 1; \

@@ -12,10 +12,11 @@ git_init_fixture() {
     git config user.email test@example.com
     git config user.name test
     git config commit.gpgsign false
-    mkdir -p tools/curl tools/wget deps scripts .github/workflows docs
+    mkdir -p tools/curl tools/wget deps builder scripts .github/workflows docs
     printf 'tool\n' > tools/curl/Dockerfile
     printf 'tool\n' > tools/wget/Dockerfile
     printf 'deps\n' > deps/Dockerfile
+    printf 'builder\n' > builder/Dockerfile
     printf 'make\n' > Makefile
     printf 'hadolint\n' > .hadolint.yaml
     printf 'script\n' > scripts/foo.sh
@@ -67,6 +68,12 @@ git reset -q --hard "${BASE}"
 printf 'x\n' >> deps/Dockerfile
 git add -A && git commit -qm deps
 assert_eq "$(scripts/ci-changed-tools.sh "${BASE}" HEAD)" "${ALL_TOOLS}" "deps rebuilds all tools"
+
+# Builder image rebuilds everything.
+git reset -q --hard "${BASE}"
+printf 'x\n' >> builder/Dockerfile
+git add -A && git commit -qm builder
+assert_eq "$(scripts/ci-changed-tools.sh "${BASE}" HEAD)" "${ALL_TOOLS}" "builder rebuilds all tools"
 
 # Infrastructure paths rebuild everything.
 for spec in \
