@@ -1,0 +1,12 @@
+# Watch GitHub Actions only. Tarball pins in versions.mk are tracked in
+# https://github.com/colinmcintosh/static-tools/issues/46
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
