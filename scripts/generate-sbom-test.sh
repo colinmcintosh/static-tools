@@ -93,12 +93,41 @@ PY
 assert_ok "magic.mgc-arm64 SBOM does not list zlib"
 
 read -r -a artifacts < <(make -s --no-print-directory -C "${ROOT}" print-artifacts)
-assert_eq "${#artifacts[@]}" "$(( 2 * ($(make -s --no-print-directory -C "${ROOT}" list | sed -n 's/^Available tools: //p' | wc -w) + 2) ))" \
-    "print-artifacts is 2 architectures x (TOOLS + mtr-packet + magic.mgc)"
+# Some tools (iproute2, libcap, sysstat) ship no binary matching their own
+# directory name, so "2 x (len(TOOLS) + fixed extras)" is not a valid
+# formula in general. Check the invariant that actually has to hold instead:
+# every basename appears for exactly amd64 and arm64, no more, no less.
+mapfile -t basenames < <(printf '%s\n' "${artifacts[@]}" | sed -E 's/-(amd64|arm64)$//' | sort -u)
+assert_eq "${#artifacts[@]}" "$(( 2 * ${#basenames[@]} ))" \
+    "print-artifacts has exactly an amd64 and an arm64 entry for every basename"
 
 "${SCRIPT}" --tag v0000.00.0 --out-dir "${TMP}/all" "${artifacts[@]}"
 got=$(find "${TMP}/all" -name '*.spdx.json' | wc -l)
 assert_eq "${got}" "${#artifacts[@]}" "generating every release artifact produces one file each"
+
+python3 - "${TMP}/all" <<'PY'
+import json, sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+
+def names(artifact):
+    doc = json.load(open(root / f"{artifact}.spdx.json"))
+    return {p["name"] for p in doc["packages"]}
+
+assert names("ip-amd64") == {"ip-amd64", "libcap"}, names("ip-amd64")
+# ss is linked with global -lcap, but does not reference cap_* so --as-needed
+# drops it. The SBOM must stay empty if that remains true.
+assert names("ss-amd64") == {"ss-amd64"}, names("ss-amd64")
+assert names("nmap-services-amd64") == {"nmap-services-amd64"}, names("nmap-services-amd64")
+nmap = names("nmap-amd64")
+assert {"nmap-amd64", "openssl", "zlib", "libpcap"} <= nmap, nmap
+assert names("getcap-amd64") == {"getcap-amd64", "libcap"}, names("getcap-amd64")
+assert names("sadc-amd64") == {"sadc-amd64"}, names("sadc-amd64")
+assert names("less-amd64") == {"less-amd64", "ncurses"}, names("less-amd64")
+assert names("nethogs-amd64") == {"nethogs-amd64", "libpcap", "ncurses"}, names("nethogs-amd64")
+PY
+assert_ok "new multi-name SBOM_LIBS overrides match the linked prefix libraries"
 
 if "${SCRIPT}" --tag v0000.00.0 --out-dir "${TMP}/bad" not-an-artifact >/dev/null 2>"${TMP}/err"; then
     fail "expected malformed artifact name to fail"
