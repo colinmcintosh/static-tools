@@ -30,7 +30,7 @@ WORKDIR /src
 RUN wget -q "https://downloads.isc.org/isc/bind9/${BIND9_VERSION}/bind-${BIND9_VERSION}.tar.xz" -O bind.tar.xz && \
     echo "${BIND9_SOURCE_SHA256}  bind.tar.xz" | sha256sum -c -
 
-# BIND 9.16.x is the last autoconf version that allows static compilation.
+# Permanent pin on BIND 9.16.x. Later branches do not support static-pie dig.
 # --export-dynamic leaves a TPOFF reloc for isc_tid_v; musl static-pie
 # does not apply it, and amd64 dig then segfaults during OpenSSL init.
 RUN tar xf bind.tar.xz && \
