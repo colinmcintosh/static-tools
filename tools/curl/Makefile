@@ -84,13 +84,15 @@ test: build
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: curl --help failed" && exit 1)
 	@echo "✓ curl --help works"
-	@# Run a basic HTTP request
-	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+	@# Run an HTTPS request against a network-isolated loopback server
+	@$(DOCKER) run --rm --network none --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /curl -s -o /dev/null -w "%{http_code}" https://example.com 2>&1) && \
-		echo "$$OUTPUT" | grep -q "200" || \
-		(echo "ERROR: curl HTTP request failed" && exit 1)
-	@echo "✓ curl HTTP request works"
+		-v $(DEPS_PREFIX)/bin/openssl:/openssl:ro \
+		-v $(CURDIR)/../../scripts/test-local-https.sh:/test-local-https.sh:ro \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
+		/bin/sh /test-local-https.sh curl /curl /openssl || \
+		(echo "ERROR: curl HTTPS request failed" && exit 1)
+	@echo "✓ curl HTTPS request works"
 	@echo "==> All curl tests passed"
 
 # Verify static linking

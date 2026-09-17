@@ -84,12 +84,15 @@ test: build
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: wget --help failed" && exit 1)
 	@echo "✓ wget --help works"
-	@# Run a basic HTTP request
-	@$(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
+	@# Run an HTTPS request against a network-isolated loopback server
+	@$(DOCKER) run --rm --network none --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /wget -q --spider https://example.com && \
-		echo "✓ wget HTTP request works" || \
-		(echo "ERROR: wget HTTP request failed" && exit 1)
+		-v $(DEPS_PREFIX)/bin/openssl:/openssl:ro \
+		-v $(CURDIR)/../../scripts/test-local-https.sh:/test-local-https.sh:ro \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
+		/bin/sh /test-local-https.sh wget /wget /openssl || \
+		(echo "ERROR: wget HTTPS request failed" && exit 1)
+	@echo "✓ wget HTTPS request works"
 	@echo "==> All wget tests passed"
 
 # Verify static linking
