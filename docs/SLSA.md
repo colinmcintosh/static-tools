@@ -20,13 +20,18 @@ bit-for-bit reproducible (Build L4-class).
 - Upstream tarballs are fetched over HTTPS and verified with SHA256 pins in
   each tool's `versions.mk` (shared libraries live in `deps/versions.mk`).
 - The shared static prefix is built once per architecture in the same release
-  run (no cross-run cache). `deps` and `build` have `contents: read` only.
-- The `build` job in [`.github/workflows/release.yml`](../.github/workflows/release.yml)
+  run (no cross-run cache). `deps`, `build`, and `manifests` have
+  `contents: read` only.
+- The `build` and `manifests` jobs in
+  [`.github/workflows/release.yml`](../.github/workflows/release.yml)
   cannot mint OIDC tokens or write attestations.
 - Provenance is signed in the reusable workflow
   [`.github/workflows/attest.yml`](../.github/workflows/attest.yml) using
   SHA-pinned `actions/attest` (Sigstore keyless signing). Isolation of signing
-  from the build job is what satisfies Build L3.
+  from the build job is what satisfies Build L3. The same workflow signs a
+  per-binary SPDX 2.3 SBOM attestation (`sbom-path`); that is a second
+  predicate, not a substitute for provenance. `SHA256SUMS.txt` is generated
+  in a `contents: read` manifests job and is also a provenance subject.
 - GitHub Actions must be pinned to a full commit SHA
   (`sha_pinning_required`). Dependabot watches the `github-actions`
   ecosystem weekly
@@ -48,7 +53,10 @@ bit-for-bit reproducible (Build L4-class).
      --deny-self-hosted-runners
    ```
 
-   Or: `./scripts/verify.sh v2026.09.3 curl-amd64` (requires the GitHub CLI).
+   Or: `./scripts/verify.sh v2026.09.3 curl-amd64 SHA256SUMS.txt` (requires
+   the GitHub CLI). `SHA256SUMS.txt` is attested alongside the binaries.
+   `SHA256SUMS.txt` and SBOM attestations exist only for releases after
+   `v2026.09.6`; use a newer tag for those examples.
 
    `--signer-workflow` is not sufficient on its own. It matches only
    `<owner>/<repo>/<path>` and discards the `@<ref>` portion of the certificate
@@ -57,10 +65,26 @@ bit-for-bit reproducible (Build L4-class).
    it. `--cert-identity` pins the ref; `--source-ref` additionally pins the ref
    the source was built from.
 
-2. Checksums:
+2. Checksums (the sums file is attested; verify it with the same
+   `gh attestation verify` flags as above):
 
    ```bash
    sha256sum -c SHA256SUMS.txt
+   ```
+
+3. SBOM (pinned tool tarball and linked prefix libraries). Default
+   `gh attestation verify` checks SLSA provenance; pass `--predicate-type`
+   for the SPDX attestation (or set `VERIFY_PREDICATE_TYPE` for
+   `scripts/verify.sh`):
+
+   ```bash
+   gh attestation verify curl-amd64 \
+     --repo colinmcintosh/static-tools \
+     --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
+     --source-ref refs/tags/v2026.09.3 \
+     --deny-self-hosted-runners \
+     --predicate-type https://spdx.dev/Document/v2.3 \
+     --format json
    ```
 
 ## Source

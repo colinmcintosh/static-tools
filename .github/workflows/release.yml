@@ -1,5 +1,5 @@
 # Release workflow for static-tools
-# Builds statically compiled binaries; provenance is signed in attest.yml
+# Builds statically compiled binaries; provenance and SBOMs are signed in attest.yml
 
 name: Release
 
@@ -229,8 +229,53 @@ jobs:
           if-no-files-found: error
           retention-days: 5
 
+  # Checksums and SBOMs are derived here (contents: read only) so the
+  # attested SHA256SUMS.txt bytes are the ones published later.
+  manifests:
+    name: Release manifests
+    needs: [verify-tag, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ format('refs/tags/{0}', needs.verify-tag.outputs.tag) }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          merge-multiple: false
+
+      - name: Generate checksums and SBOMs
+        env:
+          TAG: ${{ needs.verify-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Fails unless the built set is exactly `make print-artifacts`.
+          mapfile -t bins < <(scripts/collect-release-bins.sh artifacts subjects)
+          echo "Release binaries (${#bins[@]}):"
+          printf '  %s\n' "${bins[@]}"
+          (
+            cd subjects
+            sha256sum "${bins[@]}" > ../SHA256SUMS.txt
+          )
+          scripts/generate-sbom.sh --tag "${TAG}" --out-dir sboms "${bins[@]}"
+
+      - name: Upload release manifests
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-manifests
+          path: |
+            SHA256SUMS.txt
+            sboms/
+          if-no-files-found: error
+          retention-days: 5
+
   attest:
-    needs: [build]
+    needs: [manifests]
     uses: ./.github/workflows/attest.yml
     permissions:
       contents: read
@@ -275,20 +320,14 @@ jobs:
       - name: Prepare release assets
         run: |
           set -euo pipefail
-          mkdir -p release
-          find artifacts -type f \( -name '*-amd64' -o -name '*-arm64' \) ! -path 'artifacts/deps-prefix-*/*' -exec cp {} release/ \;
-          cd release
-          mapfile -t bins < <(find . -maxdepth 1 -type f -printf '%f\n' | sort)
+          mapfile -t bins < <(scripts/collect-release-bins.sh artifacts release)
           binary_count=${#bins[@]}
-          # 2 architectures × (18 tools + mtr-packet + magic.mgc)
-          expected=40
           echo "Release binaries (${binary_count}):"
           printf '  %s\n' "${bins[@]}"
-          if [ "${binary_count}" -ne "${expected}" ]; then
-            echo "::error::Expected ${expected} binaries, found ${binary_count}"
-            exit 1
-          fi
-          sha256sum "${bins[@]}" > SHA256SUMS.txt
+          cp artifacts/release-manifests/SHA256SUMS.txt release/SHA256SUMS.txt
+          cd release
+          # Publish the attested SHA256SUMS.txt bytes; do not regenerate.
+          sha256sum -c SHA256SUMS.txt
           sum_count="$(wc -l < SHA256SUMS.txt)"
           if [ "${sum_count}" -ne "${binary_count}" ]; then
             echo "::error::SHA256SUMS.txt has ${sum_count} lines, expected ${binary_count}"
@@ -333,16 +372,36 @@ jobs:
             Or use the wrapper script:
 
             ```bash
-            ./scripts/verify.sh ${{ needs.verify-tag.outputs.tag }} curl-amd64
+            ./scripts/verify.sh ${{ needs.verify-tag.outputs.tag }} curl-amd64 SHA256SUMS.txt
             ```
 
             `--cert-identity` pins both the signing workflow and the tag it ran
-            from. `--signer-workflow` matches only the workflow path, so on its
+            from (including for `SHA256SUMS.txt`, which is also a provenance subject).
+            `--signer-workflow` matches only the workflow path, so on its
             own it would accept an attestation produced from any ref.
 
             ### Checksums
 
-            See `SHA256SUMS.txt` for file checksums.
+            See `SHA256SUMS.txt` for file checksums. That file is attested;
+            verify it with `gh attestation verify SHA256SUMS.txt` using the
+            same flags as above.
+
+            ### SBOM
+
+            Each binary has a signed SPDX 2.3 SBOM attestation listing the
+            pinned tool tarball and the prefix libraries linked into it:
+
+            ```bash
+            gh attestation verify curl-amd64 \
+              --repo ${{ github.repository }} \
+              --cert-identity https://github.com/${{ github.repository }}/.github/workflows/attest.yml@refs/tags/${{ needs.verify-tag.outputs.tag }} \
+              --source-ref refs/tags/${{ needs.verify-tag.outputs.tag }} \
+              --deny-self-hosted-runners \
+              --predicate-type https://spdx.dev/Document/v2.3 \
+              --format json
+            ```
+
+            Or: `VERIFY_PREDICATE_TYPE=https://spdx.dev/Document/v2.3 ./scripts/verify.sh ${{ needs.verify-tag.outputs.tag }} curl-amd64`
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
@@ -381,14 +440,11 @@ jobs:
           VERIFY_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          # Fails unless the published set is exactly `make print-artifacts`.
+          scripts/collect-release-bins.sh published "${RUNNER_TEMP}/published-bins" >/dev/null
           cd published
           test -f SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
           mapfile -t bins < <(find . -maxdepth 1 -type f \( -name '*-amd64' -o -name '*-arm64' \) -printf '%f\n' | sort)
-          expected=40
-          if [ "${#bins[@]}" -ne "${expected}" ]; then
-            echo "::error::Expected ${expected} published binaries, found ${#bins[@]}"
-            exit 1
-          fi
-          # SHA256SUMS.txt is not attested; verify binaries only.
-          ../scripts/verify.sh "${TAG}" "${bins[@]}"
+          ../scripts/verify.sh "${TAG}" "${bins[@]}" SHA256SUMS.txt
+          VERIFY_PREDICATE_TYPE=https://spdx.dev/Document/v2.3 ../scripts/verify.sh "${TAG}" "${bins[@]}"

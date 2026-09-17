@@ -1,4 +1,4 @@
-# Isolated provenance signing (SLSA Build L3).
+# Isolated provenance and SBOM signing (SLSA Build L3).
 # workflow_call only so the build job cannot mint attestations.
 name: Attest
 
@@ -16,32 +16,71 @@ jobs:
       actions: read
       id-token: write
       attestations: write
+    outputs:
+      sbom-matrix: ${{ steps.collect.outputs.sbom-matrix }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Download build artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
           merge-multiple: false
 
-      - name: Collect binaries
+      - name: Collect subjects
+        id: collect
         run: |
           set -euo pipefail
-          mkdir -p subjects
-          find artifacts -type f \( -name '*-amd64' -o -name '*-arm64' \) ! -path 'artifacts/deps-prefix-*/*' -exec cp {} subjects/ \;
-          mapfile -t bins < <(find subjects -maxdepth 1 -type f -printf '%f\n' | sort)
-          binary_count=${#bins[@]}
-          # 2 architectures × (18 tools + mtr-packet + magic.mgc)
-          expected=40
-          echo "Binaries to attest (${binary_count}):"
-          printf '  %s\n' "${bins[@]}"
-          if [ "${binary_count}" -ne "${expected}" ]; then
-            echo "::error::Expected ${expected} binaries to attest, found ${binary_count}"
-            exit 1
-          fi
+          scripts/collect-release-bins.sh artifacts subjects
+          # Every binary must have exactly one SBOM from the manifests job.
+          diff -u \
+            <(find subjects -maxdepth 1 -type f -printf '%f\n' | sort) \
+            <(find artifacts/release-manifests/sboms -maxdepth 1 -name '*.spdx.json' -printf '%f\n' | sed 's/\.spdx\.json$//' | sort)
+          # SBOM matrix from what was built: {name, bundle} where bundle is
+          # the build artifact that holds the binary (mtr-packet-amd64 is in mtr-amd64).
+          matrix=$(find artifacts -mindepth 2 -maxdepth 2 -type f \( -name '*-amd64' -o -name '*-arm64' \) ! -path 'artifacts/deps-prefix-*/*' -printf '%P\n' \
+            | jq -R -s -c 'split("\n") | map(select(. != "") | split("/") | {bundle: .[0], name: .[1]}) | sort_by(.name)')
+          echo "sbom-matrix=${matrix}" >> "${GITHUB_OUTPUT}"
+          cp artifacts/release-manifests/SHA256SUMS.txt subjects/SHA256SUMS.txt
+          echo "Subjects to attest:"
+          find subjects -maxdepth 1 -type f -printf '  %f\n' | sort
 
       - name: Generate build provenance attestation
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: |
-            subjects/*-amd64
-            subjects/*-arm64
+          subject-path: subjects/*
+
+  attest-sbom:
+    name: Attest SBOM ${{ matrix.name }}
+    needs: [attest]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.attest.outputs.sbom-matrix) }}
+    steps:
+      - name: Download binary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ matrix.bundle }}
+          path: subjects
+
+      - name: Download release manifests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-manifests
+          path: manifests
+
+      - name: Generate SBOM attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: subjects/${{ matrix.name }}
+          sbom-path: manifests/sboms/${{ matrix.name }}.spdx.json

@@ -219,6 +219,12 @@ jobs:
       - name: Test commit signature gate
         run: scripts/verify-commit-signatures-test.sh
 
+      - name: Test SBOM generator
+        run: scripts/generate-sbom-test.sh
+
+      - name: Test release artifact collection
+        run: scripts/collect-release-bins-test.sh
+
   # Stable required check. Matrix job names expand (Build curl-amd64, …),
   # so a ruleset cannot require the unexpanded template name.
   ci:

@@ -74,13 +74,27 @@ gh attestation verify curl-amd64 \
   --deny-self-hosted-runners
 ```
 
+The same flags verify `SHA256SUMS.txt`, which is also a provenance subject:
+
+```bash
+gh attestation verify SHA256SUMS.txt \
+  --repo colinmcintosh/static-tools \
+  --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
+  --source-ref refs/tags/v2026.09.3 \
+  --deny-self-hosted-runners
+```
+
 Or use the included wrapper (also requires `gh`; it does not bootstrap a verifier):
 
 ```bash
-./scripts/verify.sh v2026.09.3 curl-amd64
+./scripts/verify.sh v2026.09.3 curl-amd64 SHA256SUMS.txt
 ```
 
-Substitute the tag of the release you downloaded. Pinning the tag matters:
+Substitute the tag of the release you downloaded. `SHA256SUMS.txt` and SBOM attestations exist only for releases after
+`v2026.09.6`; against older tags the commands that use them fail with "no
+attestations found". Use a newer tag for those examples.
+
+Pinning the tag matters:
 `--cert-identity` binds both the signing workflow and the ref it ran from,
 while `--signer-workflow` matches only the workflow path and would accept an
 attestation produced from any branch.
@@ -91,6 +105,30 @@ Then check checksums:
 sha256sum -c SHA256SUMS.txt
 ```
 
+Each binary also has a signed SPDX 2.3 SBOM attestation that lists the pinned
+tool tarball and the prefix libraries linked into it (OpenSSL, zlib, and so
+on). `gh attestation verify` defaults to SLSA provenance; pass
+`--predicate-type` to read the SBOM:
+
+```bash
+gh attestation verify curl-amd64 \
+  --repo colinmcintosh/static-tools \
+  --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
+  --source-ref refs/tags/v2026.09.3 \
+  --deny-self-hosted-runners \
+  --predicate-type https://spdx.dev/Document/v2.3 \
+  --format json
+```
+
+`--format json` prints the verified statement, including the SPDX packages.
+To save the signed bundle instead:
+
+```bash
+gh attestation download curl-amd64 \
+  --repo colinmcintosh/static-tools \
+  --predicate-type https://spdx.dev/Document/v2.3
+```
+
 ### One-liner
 
 **Warning:** These are dangerous. They download, check, and then **rename files into the current directory** (`curl`, `wget`, `openssl`, `file`, `magic.mgc`, and the rest). That can overwrite or alter files already there — including tools on your `PATH` if you run it in a system directory such as `/usr/local/bin`. Use an empty directory you control.
@@ -99,7 +137,7 @@ The parentheses `( ... )` start a subshell so `set -eu` cannot leak into your in
 
 #### With GitHub CLI
 
-Requires the [GitHub CLI](https://cli.github.com/). Checks `SHA256SUMS.txt` and verifies SLSA provenance (signer workflow, release tag, GitHub-hosted runners).
+Requires the [GitHub CLI](https://cli.github.com/). Checks `SHA256SUMS.txt` and verifies SLSA provenance for the binaries and the sums file (signer workflow, release tag, GitHub-hosted runners).
 
 ```bash
 (
@@ -113,6 +151,11 @@ Requires the [GitHub CLI](https://cli.github.com/). Checks `SHA256SUMS.txt` and 
   t=$(gh release view -R colinmcintosh/static-tools --json tagName -q .tagName)
   gh release download -R colinmcintosh/static-tools --clobber -p "*-$a" -p SHA256SUMS.txt
   sha256sum -c --ignore-missing SHA256SUMS.txt
+  gh attestation verify SHA256SUMS.txt \
+    --repo colinmcintosh/static-tools \
+    --cert-identity "https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/$t" \
+    --source-ref "refs/tags/$t" \
+    --deny-self-hosted-runners
   printf '%s\0' *-"$a" | xargs -0 -P"$(nproc)" -I{} bash -c '
     f=$1 t=$2
     if gh attestation verify "$f" \
@@ -136,7 +179,7 @@ Requires the [GitHub CLI](https://cli.github.com/). Checks `SHA256SUMS.txt` and 
 
 #### You-trust-me one-liner
 
-No `gh`. This only downloads the latest release assets for your architecture and checks them against the `SHA256SUMS.txt` published in that same release. It does **not** verify attestations, so it cannot tell you that the binaries were built by `.github/workflows/attest.yml` on the release tag, or that the sums file itself is authentic. Matching checksums only means the bits match whatever GitHub is serving. You are trusting the release assets.
+No `gh`. This only downloads the latest release assets for your architecture and checks them against the `SHA256SUMS.txt` published in that same release. It does **not** verify attestations, so it cannot tell you that the binaries were built by `.github/workflows/attest.yml` on the release tag, or that the sums file itself is authentic — even though that file is attested when you use `gh`. Matching checksums only means the bits match whatever GitHub is serving. You are trusting the release assets.
 
 ```bash
 (
@@ -203,6 +246,7 @@ make test        # all tools
 ```bash
 make help     # Show all available commands
 make list     # List available tools
+make sbom     # Generate SPDX SBOMs from versions.mk pins
 make clean    # Remove build artifacts
 ```
 
@@ -224,8 +268,10 @@ static-tools/
 ├── .github/workflows/
 │   ├── ci.yml
 │   ├── release.yml
-│   └── attest.yml            # Isolated provenance signing (workflow_call)
+│   └── attest.yml            # Isolated provenance + SBOM signing (workflow_call)
 └── scripts/
+    ├── collect-release-bins.sh # Collect release binaries; check against make print-artifacts
+    ├── generate-sbom.sh      # Pin-file SPDX SBOMs for release artifacts
     └── verify.sh
 ```
 
@@ -238,10 +284,13 @@ To add a new tool (e.g., `dig`):
    mkdir -p tools/dig
    ```
 
-2. Create `tools/dig/versions.mk` with pinned versions:
+2. Create `tools/dig/versions.mk` with pinned versions and `SBOM_LIBS`
+   (the prefix libraries this tool actually links; empty is allowed and
+   must be written out):
    ```makefile
    DIG_VERSION := 9.18.24
    DIG_SOURCE_SHA256 := <computed-hash>
+   SBOM_LIBS := openssl
    ```
 
 3. Create `tools/dig/Dockerfile` following the curl pattern:
@@ -256,7 +305,12 @@ To add a new tool (e.g., `dig`):
 
 5. Add `dig` to the `TOOLS` list in the root `Makefile`
 
-6. Update the CI/release workflow matrices, and bump the expected binary count in `release.yml` / `attest.yml` if you add extra artifacts (like `mtr-packet` or `magic.mgc`)
+6. Update the CI/release build matrices. The release checks the built
+   binaries against `make print-artifacts` and derives the `attest-sbom`
+   matrix from them, so there are no counts to bump. Extra artifacts (like
+   `mtr-packet` or `magic.mgc`) must be added to `ARTIFACTS` in the root
+   `Makefile`; if they share a tool tarball but not its libraries, they also
+   need `SBOM_LIBS_<name> :=` in that tool's `versions.mk`.
 
 ## Supply Chain Security
 
@@ -266,6 +320,7 @@ Details are in [docs/SLSA.md](docs/SLSA.md). Summary:
 |-------------|----------------|
 | **Provenance generation** | GitHub Artifact Attestations (`actions/attest`) |
 | **Signed provenance** | Sigstore (keyless signing via Fulcio) |
+| **SBOM** | Per-binary SPDX 2.3 attestation from `versions.mk` pins |
 | **Isolated builds** | GitHub-hosted runners + container builds |
 | **Unforgeable provenance** | Reusable `attest.yml`; build job has no OIDC |
 
@@ -281,7 +336,7 @@ What determines the bits in a release binary is pinned:
 
 ### Verification
 
-Every release includes `SHA256SUMS.txt`. Provenance is stored as GitHub Artifact Attestations (not a `multiple.intoto.jsonl` release asset). Verify with `gh attestation verify` and `--signer-workflow` as above.
+Every release includes `SHA256SUMS.txt`, which is itself a provenance subject. Provenance and per-binary SPDX SBOMs are stored as GitHub Artifact Attestations (not a `multiple.intoto.jsonl` release asset). Verify provenance with `gh attestation verify` as above; add `--predicate-type https://spdx.dev/Document/v2.3` to read the SBOM.
 
 ## Known Issues
 

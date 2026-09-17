@@ -7,3 +7,7 @@ include ../../deps/versions.mk
 CURL_VERSION := 8.22.0
 CURL_SOURCE_URL := https://curl.se/download/curl-$(CURL_VERSION).tar.gz
 CURL_SOURCE_SHA256 := d54dd598bf05927a726deb38df31c6a255ba83ff1de57c5d1464dac3ed8f44a1
+
+# Prefix libraries statically linked into this artifact (SBOM).
+# zstd is auto-detected from the prefix (no --without-zstd).
+SBOM_LIBS := openssl zlib nghttp2 zstd
