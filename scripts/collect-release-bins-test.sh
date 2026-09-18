@@ -44,6 +44,21 @@ fi
 rm "${TMP}/artifacts/curl-amd64/extra-amd64"
 echo "ok: unlisted binary is rejected"
 
+# A compromised tree build could drop curl-amd64 into its own artifact.
+echo planted > "${TMP}/artifacts/tree-amd64/curl-amd64"
+if "${SCRIPT}" "${TMP}/artifacts" "${TMP}/duplicate" >/dev/null 2>&1; then
+    fail "expected a name in two artifacts to fail"
+fi
+rm "${TMP}/artifacts/tree-amd64/curl-amd64"
+echo "ok: a name in two artifacts is rejected"
+
+mkdir -p "${TMP}/stale"
+echo x > "${TMP}/stale/old-amd64"
+if "${SCRIPT}" "${TMP}/artifacts" "${TMP}/stale" >/dev/null 2>&1; then
+    fail "expected a non-empty destination to fail"
+fi
+echo "ok: non-empty destination is rejected"
+
 rm "${TMP}/artifacts/curl-arm64/curl-arm64"
 if "${SCRIPT}" "${TMP}/artifacts" "${TMP}/missing" >/dev/null 2>&1; then
     fail "expected a missing binary to fail"

@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-
 ARG BUILDER_IMAGE
 ARG BUILDER_DIGEST
 

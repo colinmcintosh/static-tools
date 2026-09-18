@@ -17,6 +17,12 @@ concurrency:
 permissions:
   contents: read
 
+# BuildKit runs every RUN step and, because no Dockerfile has a # syntax=
+# line, also supplies the Dockerfile frontend. Keep this digest identical in
+# every workflow that sets up Buildx (scripts/assert-buildkit-pinned.sh).
+env:
+  BUILDKIT_IMAGE: moby/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
+
 jobs:
   # Verify commits in the push/PR range are signed
   verify-signatures:
@@ -129,6 +135,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver: docker-container
+          driver-opts: image=${{ env.BUILDKIT_IMAGE }}
 
       - name: Restore deps prefix cache
         id: cache-deps
@@ -172,6 +181,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver: docker-container
+          driver-opts: image=${{ env.BUILDKIT_IMAGE }}
 
       - name: Download deps prefix
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -197,6 +209,14 @@ jobs:
         run: |
           make test-${{ matrix.tool }} ARCH=${{ matrix.arch }}
 
+      # Same staging the release runs (attest.yml), so a mismatch between the
+      # staging list and the build output fails here, not on the first tag.
+      - name: Check and stage release files
+        env:
+          TOOL: ${{ matrix.tool }}
+          ARCH: ${{ matrix.arch }}
+        run: scripts/stage-release-files.sh "${TOOL}" "${ARCH}" "dist/${TOOL}/${ARCH}" "${RUNNER_TEMP}/stage"
+
       - name: Upload build artifacts
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -220,6 +240,9 @@ jobs:
       - name: Test source URL wiring
         run: scripts/assert-source-url-wired-test.sh
 
+      - name: Test BuildKit pin check
+        run: scripts/assert-buildkit-pinned-test.sh
+
       - name: Test change detection
         run: scripts/ci-changed-tools-test.sh
 
@@ -234,6 +257,9 @@ jobs:
 
       - name: Test release artifact collection
         run: scripts/collect-release-bins-test.sh
+
+      - name: Test release file staging
+        run: scripts/stage-release-files-test.sh
 
   # Stable required check. Matrix job names expand (Build curl-amd64, …),
   # so a ruleset cannot require the unexpanded template name.

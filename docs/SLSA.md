@@ -26,19 +26,44 @@ bit-for-bit reproducible (Build L4-class).
   committed key under
   [`scripts/upstream-keys/`](../scripts/upstream-keys/). In-build SHA256
   remains the bit-identity check extracted by Docker.
+- Release binaries are built and signed in the reusable workflow
+  [`.github/workflows/attest.yml`](../.github/workflows/attest.yml).
+  [`.github/workflows/release.yml`](../.github/workflows/release.yml) calls it
+  after verifying the tag, then publishes. The certificate identity you
+  verify, `attest.yml@refs/tags/<tag>`, therefore names the workflow that
+  built the binaries, which is GitHub's reusable-workflow pattern for
+  Build L3.
 - The shared static prefix is built once per architecture in the same release
-  run (no cross-run cache). `deps`, `build`, and `manifests` have
-  `contents: read` only.
-- The `build` and `manifests` jobs in
-  [`.github/workflows/release.yml`](../.github/workflows/release.yml)
-  cannot mint OIDC tokens or write attestations.
-- Provenance is signed in the reusable workflow
-  [`.github/workflows/attest.yml`](../.github/workflows/attest.yml) using
-  SHA-pinned `actions/attest` (Sigstore keyless signing). Isolation of signing
-  from the build job is what satisfies Build L3. The same workflow signs a
-  per-binary SPDX 2.3 SBOM attestation (`sbom-path`); that is a second
-  predicate, not a substitute for provenance. `SHA256SUMS.txt` is generated
-  in a `contents: read` manifests job and is also a provenance subject.
+  run (no cross-run cache). The `deps`, `build`, and `manifests` jobs have
+  `contents: read` only, so they cannot mint OIDC tokens or write
+  attestations.
+- Only the `attest` and `attest-sbom` jobs can mint OIDC tokens. They check
+  out nothing and run no repository scripts. Their only input is the
+  `release-manifests` artifact from the `manifests` job. It holds the
+  digests to sign (`SHA256SUMS.txt`, `provenance-subjects.txt`) and the SPDX
+  SBOM JSON, not the binaries. Each job calls SHA-pinned `actions/attest`
+  (Sigstore keyless signing) with `subject-checksums`, or with
+  `subject-name` + `subject-digest` and the SBOM file, and `actions/attest`
+  parses those files while it holds the token. Build L3 allows build steps
+  to supply output digests. Provenance covers every binary plus
+  `SHA256SUMS.txt`. Each binary also gets a per-binary SPDX 2.3 SBOM
+  attestation (`sbom-path`); that is a second predicate, not a substitute
+  for provenance.
+- Release runs take no inputs. A release starts from a tag push, or from
+  `workflow_dispatch` run from the tag
+  (`gh workflow run release.yml --ref <tag>`). Its only external parameter
+  is the tag ref, and the provenance records it
+  (`externalParameters.workflow.ref`). Every job checks out `github.sha`,
+  the commit the provenance names.
+- Each build job stages only the files its tool ships, by name, and
+  [`scripts/collect-release-bins.sh`](../scripts/collect-release-bins.sh)
+  fails when a file name appears in more than one artifact. One tool's
+  build therefore cannot replace another tool's binary.
+- BuildKit is pinned by index digest (`BUILDKIT_IMAGE` in the workflows). It
+  runs every `RUN` step, and because no Dockerfile has a `# syntax=` line,
+  it also supplies the Dockerfile frontend.
+  [`scripts/assert-buildkit-pinned.sh`](../scripts/assert-buildkit-pinned.sh)
+  enforces both in `make lint`.
 - GitHub Actions must be pinned to a full commit SHA
   (`sha_pinning_required`). Dependabot watches the `github-actions`
   ecosystem weekly

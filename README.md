@@ -6,7 +6,7 @@ See [docs/SLSA.md](docs/SLSA.md) for the claim, how it is achieved, and how to v
 
 ## Overview
 
-This repository provides statically linked PIE binaries that can run on any Linux system without dependencies. They get ASLR (`ET_DYN`, no interpreter). Release builds run in digest-pinned containers. Provenance is signed in an isolated reusable workflow so the build job cannot mint attestations.
+This repository provides statically linked PIE binaries that can run on any Linux system without dependencies. They get ASLR (`ET_DYN`, no interpreter). Release builds run in digest-pinned containers inside a reusable workflow, `attest.yml`, which also signs their provenance. Only its signing jobs can mint attestations, and those jobs run no repository code.
 
 The provenance is intended to prove the supply chain between upstream source (the tarball being built) and the binary an end user downloads. It does not prove the supply chain of that upstream source.
 
@@ -301,8 +301,8 @@ static-tools/
 ├── .github/workflows/
 │   ├── builder.yml           # Publish and attest the builder image
 │   ├── ci.yml
-│   ├── release.yml
-│   └── attest.yml            # Isolated provenance + SBOM signing (workflow_call)
+│   ├── release.yml           # Verify the tag, call attest.yml, publish
+│   └── attest.yml            # Build and sign release binaries (workflow_call)
 └── scripts/
     ├── collect-release-bins.sh # Collect release binaries; check against make print-artifacts
     ├── generate-sbom.sh      # Pin-file SPDX SBOMs for release artifacts
@@ -336,6 +336,8 @@ To add a new tool (e.g., `dig`):
    instead of a second `*_SOURCE_URL`.
 
 3. Create `tools/dig/Dockerfile` following the curl pattern:
+   - No `# syntax=` line; CI and release builds use the digest-pinned
+     BuildKit's built-in frontend (`make lint` enforces this)
    - `FROM` the digest-pinned builder image (do not `apk add`)
    - `COPY --from=deps` the shared static prefix unless the tool does not link the prefix
    - `ARG DIG_SOURCE_URL` and `wget -q "${DIG_SOURCE_URL}"` (never a literal URL)
@@ -349,12 +351,15 @@ To add a new tool (e.g., `dig`):
 
 5. Add `dig` to the `TOOLS` list in the root `Makefile`
 
-6. Update the CI/release build matrices. The release checks the built
-   binaries against `make print-artifacts` and derives the `attest-sbom`
-   matrix from them, so there are no counts to bump. Extra artifacts (like
-   `mtr-packet` or `magic.mgc`) must be added to `ARTIFACTS` in the root
-   `Makefile`; if they share a tool tarball but not its libraries, they also
-   need `SBOM_LIBS_<name> :=` in that tool's `versions.mk`.
+6. Add `dig` to the release build matrix in `.github/workflows/attest.yml`
+   (CI finds tools from `tools/`). The release checks the built binaries
+   against `make print-artifacts` and derives the `attest-sbom` matrix from
+   `SHA256SUMS.txt`, so there are no counts to bump. A tool that ships more
+   than one file (like `mtr-packet` or `magic.mgc`) must list them in the
+   *Check and stage release files* step in `attest.yml` and in `ARTIFACTS`
+   in the root `Makefile`; if they share a tool tarball but not its
+   libraries, they also need `SBOM_LIBS_<name> :=` in that tool's
+   `versions.mk`.
 
 ## Supply Chain Security
 
@@ -366,13 +371,14 @@ Details are in [docs/SLSA.md](docs/SLSA.md). Summary:
 | **Signed provenance** | Sigstore (keyless signing via Fulcio) |
 | **SBOM** | Per-binary SPDX 2.3 attestation from `versions.mk` pins |
 | **Isolated builds** | GitHub-hosted runners + container builds |
-| **Unforgeable provenance** | Reusable `attest.yml`; build job has no OIDC |
+| **Unforgeable provenance** | Reusable `attest.yml` builds and signs; build jobs have no OIDC; signing jobs run only `download-artifact` and `actions/attest` |
 
 ### Version Pinning
 
 What determines the bits in a release binary is pinned:
 
 - **Builder image**: compiler, static libc, autotools, and headers, pinned by the multi-arch index digest (`BUILDER_DIGEST` in `deps/versions.mk`). Published and attested by `.github/workflows/builder.yml`.
+- **BuildKit**: `moby/buildkit` pinned by index digest (`BUILDKIT_IMAGE` in the workflows). It runs every `RUN` step and, since no Dockerfile has a `# syntax=` line, supplies the Dockerfile frontend too.
 - **Source code**: tool tarballs verified with SHA256 checksums; signed pins are also audited with committed upstream keys
 - **C libraries**: built from upstream tarballs pinned by URL + SHA256 (`deps/versions.mk`)
 - **GitHub Actions**: pinned by commit SHA

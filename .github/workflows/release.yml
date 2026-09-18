@@ -1,5 +1,5 @@
 # Release workflow for static-tools
-# Builds statically compiled binaries; provenance and SBOMs are signed in attest.yml
+# Verifies the release tag, builds and signs in attest.yml, then publishes.
 
 name: Release
 
@@ -7,23 +7,22 @@ on:
   push:
     tags:
       - 'v*'
+  # Retry a release by dispatching from its tag:
+  #   gh workflow run release.yml --ref <tag>
+  # There are no inputs. The tag ref is the only external parameter, and the
+  # provenance records it (externalParameters.workflow.ref).
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release (e.g., v1.0.0)'
-        required: true
-        type: string
 
 permissions: {}
 
 # Tag push and workflow_dispatch of the same tag must not publish over each other.
 # cancel-in-progress is false so a started release is not aborted mid-publish.
-# GitHub expressions have no replace(); the dispatch input is the bare tag
-# (v1.0.0). The verify job still strips a refs/tags/ prefix if one is typed.
 concurrency:
-  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# Every job checks out github.sha: the commit the tag pointed at when the run
+# started, which is the commit the provenance names.
 jobs:
   verify-tag:
     name: Verify release tag
@@ -32,68 +31,48 @@ jobs:
       contents: read
     outputs:
       tag: ${{ steps.verify.outputs.tag }}
-      sha: ${{ steps.verify.outputs.sha }}
     steps:
-      - name: Checkout refs/tags/<tag>
+      - name: Checkout the tagged commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          ref: ${{ github.sha }}
           # Full history so the tag commit can be checked against main and its
           # signature verified.
           fetch-depth: 0
 
-      - name: Verify tag points at the commit being built
+      - name: Verify the run is for a release tag
         id: verify
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
-            TAG="${INPUT_TAG#refs/tags/}"
-          else
-            TAG="${GITHUB_REF#refs/tags/}"
-          fi
-          if [[ -z "${TAG}" ]]; then
-            echo "::error::Release tag is empty"
+          if [[ "${GITHUB_REF}" != refs/tags/v* ]]; then
+            echo "::error::Releases run from a v* tag, not ${GITHUB_REF}. To retry one, dispatch from the tag: gh workflow run release.yml --ref <tag>"
             exit 1
           fi
-          if ! git rev-parse --verify --quiet "refs/tags/${TAG}"; then
-            echo "::error::Tag ${TAG} is missing"
-            exit 1
-          fi
+          TAG="${GITHUB_REF#refs/tags/}"
           TAG_SHA="$(git rev-parse "refs/tags/${TAG}^{commit}")"
-          HEAD_SHA="$(git rev-parse HEAD)"
-          if [[ "${TAG_SHA}" != "${HEAD_SHA}" ]]; then
-            echo "::error::Tag ${TAG} points at ${TAG_SHA} but HEAD is ${HEAD_SHA}"
-            exit 1
-          fi
           if [[ "${TAG_SHA}" != "${GITHUB_SHA}" ]]; then
-            echo "::error::Tag ${TAG} points at ${TAG_SHA} but this workflow run is ${GITHUB_SHA}. Dispatch from the tag so provenance matches the commit being built."
+            echo "::error::Tag ${TAG} points at ${TAG_SHA} but this run is for ${GITHUB_SHA}"
             exit 1
           fi
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
-          echo "sha=${TAG_SHA}" >> "${GITHUB_OUTPUT}"
-          echo "Verified tag ${TAG} at ${TAG_SHA}"
+          echo "Verified tag ${TAG} at ${GITHUB_SHA}"
 
       - name: Verify tag commit is reachable from main
         env:
           TAG: ${{ steps.verify.outputs.tag }}
-          TAG_SHA: ${{ steps.verify.outputs.sha }}
         run: |
           set -euo pipefail
           git fetch --no-tags --quiet origin "+refs/heads/main:refs/remotes/origin/main"
-          if ! git merge-base --is-ancestor "${TAG_SHA}" origin/main; then
-            echo "::error::Tag ${TAG} points at ${TAG_SHA}, which is not reachable from origin/main. Releases must be cut from commits merged to main."
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::Tag ${TAG} points at ${GITHUB_SHA}, which is not reachable from origin/main. Releases must be cut from commits merged to main."
             exit 1
           fi
-          echo "✓ ${TAG_SHA} is reachable from origin/main"
+          echo "✓ ${GITHUB_SHA} is reachable from origin/main"
 
       - name: Verify tag commit signature
         env:
-          TAG_SHA: ${{ steps.verify.outputs.sha }}
           KEY_OWNER: ${{ github.repository_owner }}
-        run: scripts/verify-commit-signatures.sh "${TAG_SHA}^!"
+        run: scripts/verify-commit-signatures.sh "${GITHUB_SHA}^!"
 
       - name: Verify signed upstream tarball pins
         run: scripts/verify-upstream-signatures.sh
@@ -115,214 +94,10 @@ jobs:
             echo "No existing release for ${TAG}"
           fi
 
-  # Shared static prefix, built once per architecture in this run.
-  # Do not restore a cross-run cache here; release provenance stays hermetic.
-  deps:
-    name: Deps ${{ matrix.arch }}
-    needs: [verify-tag]
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ format('refs/tags/{0}', needs.verify-tag.outputs.tag) }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
-
-      - name: Build deps prefix
-        run: |
-          make -C deps build ARCH=${{ matrix.arch }} OUT_DIR="${GITHUB_WORKSPACE}/dist"
-
-      - name: Upload deps prefix
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: deps-prefix-${{ matrix.arch }}
-          path: dist/deps/${{ matrix.arch }}/
-          if-no-files-found: error
-          retention-days: 1
-
-  build:
-    name: Build ${{ matrix.tool }}-${{ matrix.arch }}
-    needs: [verify-tag, deps]
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        tool: [mtr, drill, dig, curl, wget, iperf3, tcpdump, ncat, openssl, rsync, socat, jq, fping, strace, ncdu, file, xxd, htop, iproute2, lsof, nmap, zstd, nethogs, whois, less, sysstat, tree, libcap]
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-            platform: linux/amd64
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-            platform: linux/arm64
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ format('refs/tags/{0}', needs.verify-tag.outputs.tag) }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
-
-      - name: Download deps prefix
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: deps-prefix-${{ matrix.arch }}
-          path: dist/deps/${{ matrix.arch }}
-
-      - name: Verify deps prefix
-        run: |
-          # upload-artifact/download-artifact do not preserve execute bits
-          chmod +x \
-            dist/deps/${{ matrix.arch }}/bin/openssl \
-            dist/deps/${{ matrix.arch }}/bin/pkg-config
-          test -f dist/deps/${{ matrix.arch }}/lib/libssl.a
-          test -x dist/deps/${{ matrix.arch }}/bin/pkg-config
-          test -x dist/deps/${{ matrix.arch }}/bin/openssl
-
-      - name: Build ${{ matrix.tool }} for ${{ matrix.arch }}
-        run: |
-          make build-${{ matrix.tool }} ARCH=${{ matrix.arch }}
-
-      - name: Verify binary is a static PIE
-        env:
-          TOOL: ${{ matrix.tool }}
-          ARCH: ${{ matrix.arch }}
-        run: |
-          set -euo pipefail
-          case "${TOOL}" in
-            mtr)
-              scripts/assert-static-elf.sh "dist/mtr/${ARCH}/mtr" "dist/mtr/${ARCH}/mtr-packet"
-              ;;
-            file)
-              scripts/assert-static-elf.sh "dist/file/${ARCH}/file"
-              ;;
-            iproute2)
-              scripts/assert-static-elf.sh "dist/iproute2/${ARCH}/ip" "dist/iproute2/${ARCH}/ss"
-              ;;
-            sysstat)
-              scripts/assert-static-elf.sh "dist/sysstat/${ARCH}/mpstat" "dist/sysstat/${ARCH}/iostat" "dist/sysstat/${ARCH}/pidstat" "dist/sysstat/${ARCH}/sar" "dist/sysstat/${ARCH}/sadc"
-              ;;
-            libcap)
-              scripts/assert-static-elf.sh "dist/libcap/${ARCH}/getcap" "dist/libcap/${ARCH}/setcap"
-              ;;
-            nmap)
-              scripts/assert-static-elf.sh "dist/nmap/${ARCH}/nmap"
-              ;;
-            *)
-              scripts/assert-static-elf.sh "dist/${TOOL}/${ARCH}/${TOOL}"
-              ;;
-          esac
-
-      - name: Rename artifacts with architecture suffix
-        run: |
-          cd dist/${{ matrix.tool }}/${{ matrix.arch }}
-          case "${{ matrix.tool }}" in
-            mtr)
-              for file in mtr mtr-packet; do
-                mv "$file" "$file-${{ matrix.arch }}"
-              done
-              ;;
-            file)
-              mv file "file-${{ matrix.arch }}"
-              mv magic.mgc "magic.mgc-${{ matrix.arch }}"
-              ;;
-            iproute2)
-              for file in ip ss; do
-                mv "$file" "$file-${{ matrix.arch }}"
-              done
-              ;;
-            sysstat)
-              for file in mpstat iostat pidstat sar sadc; do
-                mv "$file" "$file-${{ matrix.arch }}"
-              done
-              ;;
-            libcap)
-              for file in getcap setcap; do
-                mv "$file" "$file-${{ matrix.arch }}"
-              done
-              ;;
-            nmap)
-              mv nmap "nmap-${{ matrix.arch }}"
-              mv nmap-services "nmap-services-${{ matrix.arch }}"
-              ;;
-            *)
-              mv ${{ matrix.tool }} ${{ matrix.tool }}-${{ matrix.arch }}
-              ;;
-          esac
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ matrix.tool }}-${{ matrix.arch }}
-          path: dist/${{ matrix.tool }}/${{ matrix.arch }}/*-${{ matrix.arch }}
-          if-no-files-found: error
-          retention-days: 5
-
-  # Checksums and SBOMs are derived here (contents: read only) so the
-  # attested SHA256SUMS.txt bytes are the ones published later.
-  manifests:
-    name: Release manifests
-    needs: [verify-tag, build]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ format('refs/tags/{0}', needs.verify-tag.outputs.tag) }}
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          path: artifacts
-          merge-multiple: false
-
-      - name: Generate checksums and SBOMs
-        env:
-          TAG: ${{ needs.verify-tag.outputs.tag }}
-        run: |
-          set -euo pipefail
-          # Fails unless the built set is exactly `make print-artifacts`.
-          mapfile -t bins < <(scripts/collect-release-bins.sh artifacts subjects)
-          echo "Release binaries (${#bins[@]}):"
-          printf '  %s\n' "${bins[@]}"
-          (
-            cd subjects
-            sha256sum "${bins[@]}" > ../SHA256SUMS.txt
-          )
-          scripts/generate-sbom.sh --tag "${TAG}" --out-dir sboms "${bins[@]}"
-
-      - name: Upload release manifests
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-manifests
-          path: |
-            SHA256SUMS.txt
-            sboms/
-          if-no-files-found: error
-          retention-days: 5
-
+  # Build and sign in the reusable workflow. Only its signing jobs use
+  # id-token and attestations; everything else in it is contents: read.
   attest:
-    needs: [manifests]
+    needs: [verify-tag]
     uses: ./.github/workflows/attest.yml
     permissions:
       contents: read
@@ -342,7 +117,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ format('refs/tags/{0}', needs.verify-tag.outputs.tag) }}
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
       - name: Refuse to overwrite a published release
         env:
@@ -467,7 +243,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ format('refs/tags/{0}', needs.verify-tag.outputs.tag) }}
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
       - name: Download published release assets
         env:
