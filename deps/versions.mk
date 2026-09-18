@@ -19,10 +19,13 @@ ALPINE_DIGEST_AMD64 := $(ALPINE_DIGEST)
 ALPINE_DIGEST_ARM64 := $(ALPINE_DIGEST)
 
 # Host tools built into the prefix (perl is required by OpenSSL Configure)
-PERL_VERSION := 5.40.2
+PERL_VERSION := 5.40.5
 PERL_URL := https://www.cpan.org/src/5.0/perl-$(PERL_VERSION).tar.gz
-PERL_SHA256 := 10d4647cfbb543a7f9ae3e5f6851ec49305232ea7621aed24c7cfbb0bef4b70d
+PERL_SHA256 := 09d926ae2d1b277c3bce62054c41da47c981380d719c41cf980b67945cc581ed
 
+# 0.29.2 (2017) is the final freedesktop pkg-config release; upstream is
+# dead and pkgconf is the successor. It is build-time only and has no known
+# CVEs, so it stays pinned deliberately. Not an oversight.
 PKG_CONFIG_VERSION := 0.29.2
 PKG_CONFIG_URL := https://pkg-config.freedesktop.org/releases/pkg-config-$(PKG_CONFIG_VERSION).tar.gz
 PKG_CONFIG_SHA256 := 6fc69c01688c9458a57eb9a1664c9aba372ccda420a02bf4429fe610e7e7d591
@@ -42,25 +45,25 @@ NGHTTP2_VERSION := 1.69.0
 NGHTTP2_URL := https://github.com/nghttp2/nghttp2/releases/download/v$(NGHTTP2_VERSION)/nghttp2-$(NGHTTP2_VERSION).tar.gz
 NGHTTP2_SHA256 := c866b7477cbb7512ab6863a685027adbb1bb8da8fc3bab7429ed43d3281d5aa9
 
-NCURSES_VERSION := 6.5
+NCURSES_VERSION := 6.6
 NCURSES_URL := https://ftp.gnu.org/gnu/ncurses/ncurses-$(NCURSES_VERSION).tar.gz
-NCURSES_SHA256 := 136d91bc269a9a5785e5f9e980bc76ab57428f604ce3e5a5a90cebc767971cc6
+NCURSES_SHA256 := 355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11
 
 LIBCAP_VERSION := 2.78
 LIBCAP_URL := https://git.kernel.org/pub/scm/libs/libcap/libcap.git/snapshot/libcap-$(LIBCAP_VERSION).tar.gz
 LIBCAP_SHA256 := 856e742e331bb53176231e1eae3588ab044e5564c811df3138bd2f1c7b953682
 
-LIBUV_VERSION := 1.49.2
+LIBUV_VERSION := 1.52.1
 LIBUV_URL := https://dist.libuv.org/dist/v$(LIBUV_VERSION)/libuv-v$(LIBUV_VERSION).tar.gz
-LIBUV_SHA256 := 8c10706bd2cf129045c42b94799a92df9aaa75d05f07e99cf083507239bae5a8
+LIBUV_SHA256 := 66d511b9e6e334c0e62279eb234fbfb2b3110b1479c09b95b44c7afca8cff9e7
 
-URCU_VERSION := 0.14.1
+URCU_VERSION := 0.15.6
 URCU_URL := https://lttng.org/files/urcu/userspace-rcu-$(URCU_VERSION).tar.bz2
-URCU_SHA256 := 231acb13dc6ec023e836a0f0666f6aab47dc621ecb1d2cd9d9c22f922678abc0
+URCU_SHA256 := 850b192096eb11ebf2c70e8f97bc7da7479ee41da1bebeb44e3986908bac414f
 
-JEMALLOC_VERSION := 5.3.0
+JEMALLOC_VERSION := 5.3.1
 JEMALLOC_URL := https://github.com/jemalloc/jemalloc/releases/download/$(JEMALLOC_VERSION)/jemalloc-$(JEMALLOC_VERSION).tar.bz2
-JEMALLOC_SHA256 := 2db82d1e7119df3e71b7640219b6dfe84789bc0537983c3b7ac4f7189aecfeaa
+JEMALLOC_SHA256 := 3826bc80232f22ed5c4662f3034f799ca316e819103bdc7bb99018a421706f92
 
 LIBPCAP_VERSION := 1.10.7
 LIBPCAP_URL := https://www.tcpdump.org/release/libpcap-$(LIBPCAP_VERSION).tar.gz

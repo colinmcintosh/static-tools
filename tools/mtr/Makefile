@@ -37,7 +37,7 @@ deps:
 .PHONY: build
 build: $(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet
 
-$(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet &: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libncursesw.a
+$(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet &: Dockerfile versions.mk asn-clip-len.patch $(DEPS_PREFIX)/lib/libncursesw.a
 	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
 	$(BUILDX) build \
 		--platform $(PLATFORM_$(ARCH)) \
