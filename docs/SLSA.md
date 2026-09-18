@@ -37,15 +37,18 @@ bit-for-bit reproducible (Build L4-class).
   run (no cross-run cache). The `deps`, `build`, and `manifests` jobs have
   `contents: read` only, so they cannot mint OIDC tokens or write
   attestations.
-- Only the `attest` and `attest-sbom` jobs can mint OIDC tokens. They run no
-  repository code and no build output. Each one downloads the
-  `release-manifests` artifact and calls SHA-pinned `actions/attest`
-  (Sigstore keyless signing) on the digests listed there, using
-  `subject-checksums` or `subject-name` + `subject-digest`. The build steps
-  only supply output digests, which Build L3 allows. Provenance covers every
-  binary plus `SHA256SUMS.txt`, which the `manifests` job generates. Each
-  binary also gets a per-binary SPDX 2.3 SBOM attestation (`sbom-path`);
-  that is a second predicate, not a substitute for provenance.
+- Only the `attest` and `attest-sbom` jobs can mint OIDC tokens. They check
+  out nothing and run no repository scripts. Their only input is the
+  `release-manifests` artifact from the `manifests` job. It holds the
+  digests to sign (`SHA256SUMS.txt`, `provenance-subjects.txt`) and the SPDX
+  SBOM JSON, not the binaries. Each job calls SHA-pinned `actions/attest`
+  (Sigstore keyless signing) with `subject-checksums`, or with
+  `subject-name` + `subject-digest` and the SBOM file, and `actions/attest`
+  parses those files while it holds the token. Build L3 allows build steps
+  to supply output digests. Provenance covers every binary plus
+  `SHA256SUMS.txt`. Each binary also gets a per-binary SPDX 2.3 SBOM
+  attestation (`sbom-path`); that is a second predicate, not a substitute
+  for provenance.
 - Release runs take no inputs. A release starts from a tag push, or from
   `workflow_dispatch` run from the tag
   (`gh workflow run release.yml --ref <tag>`). Its only external parameter

@@ -7,9 +7,11 @@
 # binaries, not only the one that signed them.
 #
 # Jobs that run repository code (deps, build, manifests) have contents: read
-# only. Jobs that can mint OIDC tokens (attest, attest-sbom) run no repository
-# code: they download the release-manifests artifact and sign the digests
-# listed in it, never the build outputs themselves.
+# only. Jobs that can mint OIDC tokens (attest, attest-sbom) check out nothing
+# and run no repository scripts. Their only input is the release-manifests
+# artifact from the manifests job: the digests to sign (SHA256SUMS.txt,
+# provenance-subjects.txt) and the SPDX SBOM JSON, which actions/attest parses
+# while it holds the token. The binaries never reach these jobs.
 name: Build and attest
 
 on:
@@ -193,9 +195,9 @@ jobs:
           if-no-files-found: error
           retention-days: 5
 
-  # Signing jobs: no checkout, no repository scripts, no build outputs. They
-  # sign the digests the manifests job listed; SLSA lets build steps supply
-  # output digests, and nothing the build produced runs next to the OIDC token.
+  # Signing jobs: no checkout and no repository scripts. They download only
+  # release-manifests: digests, which SLSA lets build steps supply, and the
+  # SBOM JSON that actions/attest parses. They never download the binaries.
   attest:
     name: Attest release binaries
     needs: [manifests]
