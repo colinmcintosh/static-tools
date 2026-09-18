@@ -34,8 +34,10 @@ PKG_CONFIG_SHA256 := 6fc69c01688c9458a57eb9a1664c9aba372ccda420a02bf4429fe610e7e
 ZLIB_VERSION := 1.3.2
 ZLIB_URL := https://github.com/madler/zlib/releases/download/v$(ZLIB_VERSION)/zlib-$(ZLIB_VERSION).tar.gz
 ZLIB_SHA256 := bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16
-# Detached signature is published next to the same bytes on zlib.net.
-ZLIB_SIG_URL := https://zlib.net/zlib-$(ZLIB_VERSION).tar.gz.asc
+# Detached signature uploaded to the same GitHub release. zlib.net only
+# keeps the latest release at the top level, so its .asc 404s once a newer
+# zlib ships.
+ZLIB_SIG_URL := https://github.com/madler/zlib/releases/download/v$(ZLIB_VERSION)/zlib-$(ZLIB_VERSION).tar.gz.asc
 ZLIB_KEY := zlib
 
 # 3.5 is the current LTS branch, supported until 2030-04-08. Do not move to a
