@@ -122,33 +122,7 @@ jobs:
         env:
           TOOL: ${{ matrix.tool }}
           ARCH: ${{ matrix.arch }}
-        run: |
-          set -euo pipefail
-          data=()
-          case "${TOOL}" in
-            mtr) bins=(mtr mtr-packet) ;;
-            file) bins=(file); data=(magic.mgc) ;;
-            iproute2) bins=(ip ss) ;;
-            sysstat) bins=(mpstat iostat pidstat sar sadc) ;;
-            libcap) bins=(getcap setcap) ;;
-            nmap) bins=(nmap); data=(nmap-services) ;;
-            *) bins=("${TOOL}") ;;
-          esac
-          out="dist/${TOOL}/${ARCH}"
-          mkdir stage
-          for name in "${bins[@]}" "${data[@]}"; do
-            if [[ -L "${out}/${name}" || ! -f "${out}/${name}" ]]; then
-              echo "::error::${out}/${name} is missing or not a regular file"
-              exit 1
-            fi
-            cp "${out}/${name}" "stage/${name}-${ARCH}"
-          done
-          staged_bins=()
-          for name in "${bins[@]}"; do
-            staged_bins+=("stage/${name}-${ARCH}")
-          done
-          scripts/assert-static-elf.sh "${staged_bins[@]}"
-          ls -la stage
+        run: scripts/stage-release-files.sh "${TOOL}" "${ARCH}" "dist/${TOOL}/${ARCH}" stage
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

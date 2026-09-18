@@ -207,6 +207,14 @@ jobs:
         run: |
           make test-${{ matrix.tool }} ARCH=${{ matrix.arch }}
 
+      # Same staging the release runs (attest.yml), so a mismatch between the
+      # staging list and the build output fails here, not on the first tag.
+      - name: Check and stage release files
+        env:
+          TOOL: ${{ matrix.tool }}
+          ARCH: ${{ matrix.arch }}
+        run: scripts/stage-release-files.sh "${TOOL}" "${ARCH}" "dist/${TOOL}/${ARCH}" "${RUNNER_TEMP}/stage"
+
       - name: Upload build artifacts
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -247,6 +255,9 @@ jobs:
 
       - name: Test release artifact collection
         run: scripts/collect-release-bins-test.sh
+
+      - name: Test release file staging
+        run: scripts/stage-release-files-test.sh
 
   # Stable required check. Matrix job names expand (Build curl-amd64, …),
   # so a ruleset cannot require the unexpanded template name.
