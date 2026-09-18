@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-
 # Build a shared static prefix from SHA256-pinned upstream tarballs.
 # The compiler comes from the digest-pinned builder image; C libraries
 # come from source. Do not apk add here.

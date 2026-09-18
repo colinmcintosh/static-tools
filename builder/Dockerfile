@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-#
 # Frozen Alpine toolchain. apk is used only here. deps/ and tools/*/
 # FROM this image by digest and must not apk add.
 # Rebuild with .github/workflows/builder.yml, then pin the new index

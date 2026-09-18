@@ -181,6 +181,8 @@ lint:
 	$$SHELLCHECK scripts/*.sh || exit 1; \
 	echo "==> Linting workflows"; \
 	$$ACTIONLINT -shellcheck "$$SHELLCHECK" || exit 1; \
+	echo "==> Checking the BuildKit pin"; \
+	scripts/assert-buildkit-pinned.sh || exit 1; \
 	echo "✓ Lint passed"
 
 # Clean build artifacts
