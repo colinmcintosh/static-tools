@@ -178,7 +178,13 @@ jobs:
           { cat SHA256SUMS.txt; sha256sum SHA256SUMS.txt; } > provenance-subjects.txt
           # One SBOM attestation per binary, keyed by name and digest.
           matrix=$(jq -R -s -c 'split("\n") | map(select(length > 0) | capture("^(?<digest>[0-9a-f]{64})  (?<name>[^/ ]+)$"))' SHA256SUMS.txt)
-          if [[ "$(jq length <<< "${matrix}")" -ne "${#bins[@]}" ]]; then
+          # capture emits nothing for a line it cannot parse, so the count
+          # catches that; each entry must also have the shape attest-sbom reads.
+          if ! jq -e --argjson n "${#bins[@]}" '
+              length == $n and all(.[];
+                type == "object"
+                and (.digest | type == "string" and test("^[0-9a-f]{64}$"))
+                and (.name | type == "string" and length > 0))' <<< "${matrix}" >/dev/null; then
             echo "::error::SBOM matrix does not list every binary in SHA256SUMS.txt"
             exit 1
           fi
