@@ -294,6 +294,7 @@ static-tools/
 │   ├── Makefile
 │   └── versions.mk
 ├── tools/
+│   ├── common.mk               # Build rules shared by every tool Makefile
 │   ├── files.mk                # Files each tool ships (the one list)
 │   └── <name>/                 # One directory per tool; `curl/` is the reference
 │       ├── Dockerfile
@@ -347,8 +348,13 @@ To add a new tool (e.g., `dig`):
    - Assert linkage with `readelf` (no `INTERP`, `Type: DYN`), not `file`
    - If the tool needs a new library, add it to `deps/` first
 
-4. Create `tools/dig/Makefile` with build targets. Pass the pin through:
-   `--build-arg DIG_SOURCE_URL=$(DIG_SOURCE_URL)` alongside VERSION and SHA256.
+4. Create `tools/dig/Makefile` following `tools/curl/Makefile`. It includes
+   `versions.mk` and sets `TOOL := dig` and `BUILD_ARGS`, which passes each
+   pin through, for example `--build-arg DIG_SOURCE_URL=$(DIG_SOURCE_URL)`
+   alongside VERSION and SHA256. It sets `DEPS_LIBS` (the prefix libraries
+   it links) and `INPUTS` (patches or scripts the Dockerfile copies) if it
+   has any. It then includes `../common.mk`, which holds the build rules,
+   and defines `test`.
 
 5. There is no tool list to update: the root `Makefile`, CI, and the
    release all treat every `tools/<name>/` directory as a tool. A tool that

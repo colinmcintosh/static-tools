@@ -1,68 +1,16 @@
-# iperf3 build targets
+# Build settings and tests for iperf3. The build rules are in ../common.mk.
 
-SHELL := /bin/bash
-.SHELLFLAGS := -euo pipefail -c
-
-# Include version definitions
 include versions.mk
 
-# Architecture (set by parent Makefile or default to host)
-ARCH ?= amd64
-ARCHS := amd64 arm64
+TOOL := iperf3
+DEPS_LIBS := libssl.a
+BUILD_ARGS := \
+	--build-arg IPERF3_VERSION=$(IPERF3_VERSION) \
+	--build-arg IPERF3_SOURCE_URL=$(IPERF3_SOURCE_URL) \
+	--build-arg IPERF3_SOURCE_SHA256=$(IPERF3_SOURCE_SHA256)
 
-# Docker configuration
-DOCKER ?= docker
-BUILDX ?= $(DOCKER) buildx
+include ../common.mk
 
-# Output directory
-OUT_DIR ?= $(CURDIR)/../../dist
-TOOL_OUT_DIR := $(OUT_DIR)/iperf3
-DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
-
-# Image name for intermediate builds
-IMAGE_NAME := static-tools-iperf3-builder
-
-# Platform mapping
-PLATFORM_amd64 := linux/amd64
-PLATFORM_arm64 := linux/arm64
-
-# Get Alpine digest for architecture
-ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
-ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
-
-.PHONY: deps
-deps:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-.PHONY: build
-build: $(TOOL_OUT_DIR)/$(ARCH)/iperf3
-
-$(TOOL_OUT_DIR)/$(ARCH)/iperf3: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
-	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
-	$(BUILDX) build \
-		--platform $(PLATFORM_$(ARCH)) \
-		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
-		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
-		--build-arg IPERF3_VERSION=$(IPERF3_VERSION) \
-		--build-arg IPERF3_SOURCE_URL=$(IPERF3_SOURCE_URL) \
-		--build-arg IPERF3_SOURCE_SHA256=$(IPERF3_SOURCE_SHA256) \
-		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
-		--target export \
-		.
-	@echo "Built iperf3 $(IPERF3_VERSION) for $(ARCH):"
-	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
-
-$(DEPS_PREFIX)/lib/libssl.a:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-# Build for all architectures
-.PHONY: build-all
-build-all:
-	$(foreach arch,$(ARCHS),$(MAKE) build ARCH=$(arch);)
-
-# Test the binary
-.PHONY: test
 test: build
 	@echo "==> Testing iperf3 binary for $(ARCH)"
 	@# Check if binary exists and is executable
@@ -74,33 +22,15 @@ test: build
 	@# Run iperf3 --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/iperf3:/iperf3:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /iperf3 --version 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /iperf3 --version 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "iperf" || \
 		(echo "ERROR: iperf3 --version failed" && exit 1)
 	@echo "✓ iperf3 --version works"
 	@# Run iperf3 --help in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/iperf3:/iperf3:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /iperf3 --help 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /iperf3 --help 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: iperf3 --help failed" && exit 1)
 	@echo "✓ iperf3 --help works"
 	@echo "==> All iperf3 tests passed"
-
-# Verify static linking
-.PHONY: verify-static
-verify-static: build
-	@echo "==> Checking iperf3 binary linking for $(ARCH)"
-	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/iperf3
-
-# Clean build artifacts
-.PHONY: clean
-clean:
-	rm -rf $(TOOL_OUT_DIR)
-
-.PHONY: info
-info:
-	@echo "Tool: iperf3 (network bandwidth measurement tool)"
-	@echo "Source: iperf3 $(IPERF3_VERSION)"
-	@echo "URL: $(IPERF3_SOURCE_URL)"
-	@echo "SHA256: $(IPERF3_SOURCE_SHA256)"

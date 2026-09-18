@@ -17,9 +17,6 @@ DEPS_OUT_DIR := $(OUT_DIR)/deps
 PLATFORM_amd64 := linux/amd64
 PLATFORM_arm64 := linux/arm64
 
-ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
-ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
-
 .PHONY: build
 build: $(DEPS_OUT_DIR)/$(ARCH)/lib/libssl.a
 
@@ -76,10 +73,3 @@ build-all:
 .PHONY: clean
 clean:
 	rm -rf $(DEPS_OUT_DIR)
-
-.PHONY: info
-info:
-	@echo "Static prefix: $(PREFIX)"
-	@echo "OpenSSL $(OPENSSL_VERSION)"
-	@echo "zlib $(ZLIB_VERSION)"
-	@echo "nghttp2 $(NGHTTP2_VERSION)"

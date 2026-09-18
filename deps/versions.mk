@@ -13,10 +13,7 @@ ALPINE_VERSION := 3.24
 # Multi-arch index digest of alpine:3.24 (currently 3.24.1). Docker
 # selects the platform from --platform / TARGETARCH, so one pin covers
 # amd64 and arm64 and cannot be paired with the wrong architecture.
-# The per-arch names stay so existing Makefiles keep working.
 ALPINE_DIGEST := sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
-ALPINE_DIGEST_AMD64 := $(ALPINE_DIGEST)
-ALPINE_DIGEST_ARM64 := $(ALPINE_DIGEST)
 
 # 0.29.2 (2017) is the final freedesktop pkg-config release; upstream is
 # dead and pkgconf is the successor. It is build-time only and has no known

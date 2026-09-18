@@ -1,68 +1,16 @@
-# wget build targets
+# Build settings and tests for wget. The build rules are in ../common.mk.
 
-SHELL := /bin/bash
-.SHELLFLAGS := -euo pipefail -c
-
-# Include version definitions
 include versions.mk
 
-# Architecture (set by parent Makefile or default to host)
-ARCH ?= amd64
-ARCHS := amd64 arm64
+TOOL := wget
+DEPS_LIBS := libssl.a
+BUILD_ARGS := \
+	--build-arg WGET_VERSION=$(WGET_VERSION) \
+	--build-arg WGET_SOURCE_URL=$(WGET_SOURCE_URL) \
+	--build-arg WGET_SOURCE_SHA256=$(WGET_SOURCE_SHA256)
 
-# Docker configuration
-DOCKER ?= docker
-BUILDX ?= $(DOCKER) buildx
+include ../common.mk
 
-# Output directory
-OUT_DIR ?= $(CURDIR)/../../dist
-TOOL_OUT_DIR := $(OUT_DIR)/wget
-DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
-
-# Image name for intermediate builds
-IMAGE_NAME := static-tools-wget-builder
-
-# Platform mapping
-PLATFORM_amd64 := linux/amd64
-PLATFORM_arm64 := linux/arm64
-
-# Get Alpine digest for architecture
-ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
-ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
-
-.PHONY: deps
-deps:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-.PHONY: build
-build: $(TOOL_OUT_DIR)/$(ARCH)/wget
-
-$(TOOL_OUT_DIR)/$(ARCH)/wget: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
-	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
-	$(BUILDX) build \
-		--platform $(PLATFORM_$(ARCH)) \
-		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
-		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
-		--build-arg WGET_VERSION=$(WGET_VERSION) \
-		--build-arg WGET_SOURCE_URL=$(WGET_SOURCE_URL) \
-		--build-arg WGET_SOURCE_SHA256=$(WGET_SOURCE_SHA256) \
-		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
-		--target export \
-		.
-	@echo "Built wget $(WGET_VERSION) for $(ARCH):"
-	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
-
-$(DEPS_PREFIX)/lib/libssl.a:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-# Build for all architectures
-.PHONY: build-all
-build-all:
-	$(foreach arch,$(ARCHS),$(MAKE) build ARCH=$(arch);)
-
-# Test the binary
-.PHONY: test
 test: build
 	@echo "==> Testing wget binary for $(ARCH)"
 	@# Check if binary exists and is executable
@@ -74,14 +22,14 @@ test: build
 	@# Run wget --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /wget --version 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /wget --version 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "wget" || \
 		(echo "ERROR: wget --version failed" && exit 1)
 	@echo "✓ wget --version works"
 	@# Run wget --help in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /wget --help 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /wget --help 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: wget --help failed" && exit 1)
 	@echo "✓ wget --help works"
@@ -90,26 +38,8 @@ test: build
 		-v $(TOOL_OUT_DIR)/$(ARCH)/wget:/wget:ro \
 		-v $(DEPS_PREFIX)/bin/openssl:/openssl:ro \
 		-v $(CURDIR)/../../scripts/test-local-https.sh:/test-local-https.sh:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) \
 		/bin/sh /test-local-https.sh wget /wget /openssl || \
 		(echo "ERROR: wget HTTPS request failed" && exit 1)
 	@echo "✓ wget HTTPS request works"
 	@echo "==> All wget tests passed"
-
-# Verify static linking
-.PHONY: verify-static
-verify-static: build
-	@echo "==> Checking wget binary linking for $(ARCH)"
-	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/wget
-
-# Clean build artifacts
-.PHONY: clean
-clean:
-	rm -rf $(TOOL_OUT_DIR)
-
-.PHONY: info
-info:
-	@echo "Tool: wget (network file retriever)"
-	@echo "Source: wget $(WGET_VERSION)"
-	@echo "URL: $(WGET_SOURCE_URL)"
-	@echo "SHA256: $(WGET_SOURCE_SHA256)"

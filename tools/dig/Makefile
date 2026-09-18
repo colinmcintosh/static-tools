@@ -1,70 +1,17 @@
-# dig build targets
+# Build settings and tests for dig. The build rules are in ../common.mk.
 
-SHELL := /bin/bash
-.SHELLFLAGS := -euo pipefail -c
-
-# Include version definitions
 include versions.mk
 
-# Architecture (set by parent Makefile or default to host)
-ARCH ?= amd64
-ARCHS := amd64 arm64
+TOOL := dig
+DEPS_LIBS := libuv.a
+BUILD_ARGS := \
+	--build-arg BIND9_VERSION=$(BIND9_VERSION) \
+	--build-arg BIND9_SOURCE_URL=$(BIND9_SOURCE_URL) \
+	--build-arg BIND9_SOURCE_SHA256=$(BIND9_SOURCE_SHA256)
 
-# Docker configuration
-DOCKER ?= docker
-BUILDX ?= $(DOCKER) buildx
-
-# Output directory
-OUT_DIR ?= $(CURDIR)/../../dist
-TOOL_OUT_DIR := $(OUT_DIR)/dig
-DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
-
-# Image name for intermediate builds
-IMAGE_NAME := static-tools-dig-builder
-
-# Platform mapping
-PLATFORM_amd64 := linux/amd64
-PLATFORM_arm64 := linux/arm64
-
-# Get Alpine digest for architecture
-ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
-ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
-
+include ../common.mk
 include ../../scripts/dns-test-server.mk
 
-.PHONY: deps
-deps:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-.PHONY: build
-build: $(TOOL_OUT_DIR)/$(ARCH)/dig
-
-$(TOOL_OUT_DIR)/$(ARCH)/dig: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libuv.a
-	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
-	$(BUILDX) build \
-		--platform $(PLATFORM_$(ARCH)) \
-		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
-		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
-		--build-arg BIND9_VERSION=$(BIND9_VERSION) \
-		--build-arg BIND9_SOURCE_URL=$(BIND9_SOURCE_URL) \
-		--build-arg BIND9_SOURCE_SHA256=$(BIND9_SOURCE_SHA256) \
-		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
-		--target export \
-		.
-	@echo "Built dig (from BIND $(BIND9_VERSION)) for $(ARCH):"
-	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
-
-$(DEPS_PREFIX)/lib/libuv.a $(DEPS_PREFIX)/lib/libssl.a &:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-# Build for all architectures
-.PHONY: build-all
-build-all:
-	$(foreach arch,$(ARCHS),$(MAKE) build ARCH=$(arch);)
-
-# Test the binary
-.PHONY: test
 test: build $(DNS_TEST_SERVER)
 	@echo "==> Testing dig binary for $(ARCH)"
 	@# Check if binary exists and is executable
@@ -76,14 +23,14 @@ test: build $(DNS_TEST_SERVER)
 	@# Run dig -v in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /dig -v 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /dig -v 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "dig" || \
 		(echo "ERROR: dig -v failed: $$OUTPUT" && exit 1)
 	@echo "✓ dig -v works"
 	@# Run dig -h in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /dig -h 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /dig -h 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: dig -h failed" && exit 1)
 	@echo "✓ dig -h works"
@@ -92,27 +39,8 @@ test: build $(DNS_TEST_SERVER)
 		-v $(TOOL_OUT_DIR)/$(ARCH)/dig:/dig:ro \
 		-v $(DNS_TEST_SERVER):/dns-test-server:ro \
 		-v $(CURDIR)/../../scripts/test-local-dns.sh:/test-local-dns.sh:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) \
 		/bin/sh /test-local-dns.sh dig /dig /dns-test-server || \
 		(echo "ERROR: dig DNS query failed" && exit 1)
 	@echo "✓ dig DNS query works"
 	@echo "==> All dig tests passed"
-
-# Verify static linking
-.PHONY: verify-static
-verify-static: build
-	@echo "==> Checking dig binary linking for $(ARCH)"
-	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/dig
-
-# Clean build artifacts
-.PHONY: clean
-clean:
-	rm -rf $(TOOL_OUT_DIR)
-
-.PHONY: info
-info:
-	@echo "Tool: dig (DNS lookup utility from BIND)"
-	@echo "Source: BIND $(BIND9_VERSION)"
-	@echo "URL: $(BIND9_SOURCE_URL)"
-	@echo "SHA256: $(BIND9_SOURCE_SHA256)"
-	@echo "Note: BIND 9.16.x is a permanent pin; later branches do not support static-pie dig"
