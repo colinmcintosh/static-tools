@@ -37,11 +37,12 @@ include tools/files.mk
 ARTIFACTS := $(foreach arch,amd64 arm64,$(foreach tool,$(TOOLS),$(addsuffix -$(arch),$(call tool_files,$(tool)))))
 
 # Versioning Format: YYYY.MM.MINOR
-# YYYY = year, MM = zero-padded month, MINOR = release number within month
-YEAR := $(shell date +%Y)
-MONTH := $(shell date +%m)
+# YYYY = year, MM = zero-padded month, MINOR = release number within month.
+# Recursive (=) so `date` and `git tag` run only for version/tag-release.
+YEAR = $(shell date +%Y)
+MONTH = $(shell date +%m)
 # Auto-increment MINOR based on last tag for this year.month
-LAST_MINOR := $(shell git tag -l "v$(YEAR).$(MONTH).*" 2>/dev/null | sed 's/v[0-9]*\.[0-9]*\.\([0-9]*\).*/\1/' | sort -n | tail -1)
+LAST_MINOR = $(shell git tag -l "v$(YEAR).$(MONTH).*" 2>/dev/null | sed 's/v[0-9]*\.[0-9]*\.\([0-9]*\).*/\1/' | sort -n | tail -1)
 MINOR ?= $(if $(LAST_MINOR),$(shell echo $$(($(LAST_MINOR) + 1))),0)
 VERSION ?= v$(YEAR).$(MONTH).$(MINOR)
 
