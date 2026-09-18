@@ -95,6 +95,9 @@ jobs:
           KEY_OWNER: ${{ github.repository_owner }}
         run: scripts/verify-commit-signatures.sh "${TAG_SHA}^!"
 
+      - name: Verify signed upstream tarball pins
+        run: scripts/verify-upstream-signatures.sh
+
       - name: Refuse to overwrite a published release
         env:
           TAG: ${{ steps.verify.outputs.tag }}

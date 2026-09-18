@@ -327,8 +327,13 @@ To add a new tool (e.g., `dig`):
    DIG_SOURCE_SHA256 := <computed-hash>
    SBOM_LIBS := openssl
    ```
-   Tools that reuse a prefix tarball (see `libcap` / `zstd`) keep `*_URL`
-   and `*_SHA256` in `deps/versions.mk` instead of a second `*_SOURCE_URL`.
+   Prefer an uploaded release asset over a forge-generated archive. If
+   only a forge archive exists, say so in a comment next to the URL.
+   If upstream publishes a detached signature, add `*_SOURCE_SIG_URL`
+   and `*_SOURCE_KEY` and commit the ASCII-armored key under
+   `scripts/upstream-keys/`. Tools that reuse a prefix tarball (see
+   `libcap` / `zstd`) keep `*_URL` and `*_SHA256` in `deps/versions.mk`
+   instead of a second `*_SOURCE_URL`.
 
 3. Create `tools/dig/Dockerfile` following the curl pattern:
    - `FROM` the digest-pinned builder image (do not `apk add`)
@@ -368,7 +373,7 @@ Details are in [docs/SLSA.md](docs/SLSA.md). Summary:
 What determines the bits in a release binary is pinned:
 
 - **Builder image**: compiler, static libc, autotools, and headers, pinned by the multi-arch index digest (`BUILDER_DIGEST` in `deps/versions.mk`). Published and attested by `.github/workflows/builder.yml`.
-- **Source code**: tool tarballs verified with SHA256 checksums
+- **Source code**: tool tarballs verified with SHA256 checksums; signed pins are also audited with committed upstream keys
 - **C libraries**: built from upstream tarballs pinned by URL + SHA256 (`deps/versions.mk`)
 - **GitHub Actions**: pinned by commit SHA
 - **Test runtime**: Alpine pinned by the multi-arch index digest (`ALPINE_DIGEST` in `deps/versions.mk`)

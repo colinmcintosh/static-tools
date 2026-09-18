@@ -30,7 +30,6 @@ COPY asn-clip-len.patch /src/
 RUN tar xzf mtr.tar.gz && \
     cd mtr-${MTR_VERSION} && \
     patch -p1 < /src/asn-clip-len.patch && \
-    ./bootstrap.sh && \
     ./configure \
         --without-gtk \
         --without-jansson \

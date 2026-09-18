@@ -52,6 +52,16 @@ jobs:
 
           scripts/verify-commit-signatures.sh "${RANGE}"
 
+  verify-upstream:
+    name: Verify upstream signatures
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify signed upstream tarball pins
+        run: scripts/verify-upstream-signatures.sh
+
   changes:
     name: Detect changed tools
     runs-on: ubuntu-24.04
@@ -99,7 +109,7 @@ jobs:
 
   deps:
     name: Deps ${{ matrix.arch }}
-    needs: [verify-signatures, changes]
+    needs: [verify-signatures, verify-upstream, changes]
     if: ${{ needs.changes.outputs.any == 'true' }}
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -142,7 +152,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.tool }}-${{ matrix.arch }}
-    needs: [verify-signatures, changes, deps]
+    needs: [verify-signatures, verify-upstream, changes, deps]
     if: ${{ needs.changes.outputs.any == 'true' }}
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -216,6 +226,9 @@ jobs:
       - name: Test commit signature gate
         run: scripts/verify-commit-signatures-test.sh
 
+      - name: Test upstream signature audit
+        run: scripts/verify-upstream-signatures-test.sh
+
       - name: Test SBOM generator
         run: scripts/generate-sbom-test.sh
 
@@ -227,13 +240,14 @@ jobs:
   ci:
     name: CI
     if: ${{ always() && !cancelled() }}
-    needs: [verify-signatures, changes, deps, build, lint]
+    needs: [verify-signatures, verify-upstream, changes, deps, build, lint]
     runs-on: ubuntu-24.04
     steps:
       - name: Check required jobs succeeded
         if: >-
           ${{
             needs.verify-signatures.result != 'success'
+            || needs.verify-upstream.result != 'success'
             || needs.changes.result != 'success'
             || needs.lint.result != 'success'
             || (needs.changes.outputs.any == 'true' && needs.deps.result != 'success')
