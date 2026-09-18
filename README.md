@@ -95,40 +95,26 @@ limit the process to raw sockets.
 
 ### Verify Provenance (Recommended)
 
-Verify the SLSA provenance before using binaries. Requires the [GitHub CLI](https://cli.github.com/):
+Verify the SLSA provenance before using binaries. This needs the
+[GitHub CLI](https://cli.github.com/). Set `TAG` to the release you downloaded:
 
 ```bash
+TAG=v2026.09.8
 gh attestation verify curl-amd64 \
   --repo colinmcintosh/static-tools \
-  --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
-  --source-ref refs/tags/v2026.09.3 \
+  --cert-identity "https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/$TAG" \
+  --source-ref "refs/tags/$TAG" \
   --deny-self-hosted-runners
 ```
 
-The same flags verify `SHA256SUMS.txt`, which is also a provenance subject:
+`--cert-identity` pins both the workflow that built and signed the binary and
+the tag it ran from. `--signer-workflow` would match that workflow's path on
+any branch. The same command verifies `SHA256SUMS.txt`, which is also a
+provenance subject. The included wrapper runs these checks (it also needs `gh`):
 
 ```bash
-gh attestation verify SHA256SUMS.txt \
-  --repo colinmcintosh/static-tools \
-  --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
-  --source-ref refs/tags/v2026.09.3 \
-  --deny-self-hosted-runners
+./scripts/verify.sh "$TAG" curl-amd64 SHA256SUMS.txt
 ```
-
-Or use the included wrapper (also requires `gh`; it does not bootstrap a verifier):
-
-```bash
-./scripts/verify.sh v2026.09.3 curl-amd64 SHA256SUMS.txt
-```
-
-Substitute the tag of the release you downloaded. `SHA256SUMS.txt` and SBOM attestations exist only for releases after
-`v2026.09.6`; against older tags the commands that use them fail with "no
-attestations found". Use a newer tag for those examples.
-
-Pinning the tag matters:
-`--cert-identity` binds both the signing workflow and the ref it ran from,
-while `--signer-workflow` matches only the workflow path and would accept an
-attestation produced from any branch.
 
 Then check checksums. `SHA256SUMS.txt` lists every artifact for both
 architectures, so skip the ones you did not download:
@@ -139,27 +125,17 @@ sha256sum -c --ignore-missing SHA256SUMS.txt
 
 Each binary also has a signed SPDX 2.3 SBOM attestation that lists the pinned
 tool tarball and the prefix libraries linked into it (OpenSSL, zlib, and so
-on). `gh attestation verify` defaults to SLSA provenance; pass
-`--predicate-type` to read the SBOM:
-
-```bash
-gh attestation verify curl-amd64 \
-  --repo colinmcintosh/static-tools \
-  --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
-  --source-ref refs/tags/v2026.09.3 \
-  --deny-self-hosted-runners \
-  --predicate-type https://spdx.dev/Document/v2.3 \
-  --format json
-```
-
-`--format json` prints the verified statement, including the SPDX packages.
-To save the signed bundle instead:
+on). Add `--predicate-type https://spdx.dev/Document/v2.3 --format json` to the
+`gh attestation verify` command above to verify the SBOM and print it. To save
+the signed bundle instead:
 
 ```bash
 gh attestation download curl-amd64 \
   --repo colinmcintosh/static-tools \
   --predicate-type https://spdx.dev/Document/v2.3
 ```
+
+`SHA256SUMS.txt` and SBOM attestations start with `v2026.09.7`.
 
 ### One-liner
 

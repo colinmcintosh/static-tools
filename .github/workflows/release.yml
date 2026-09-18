@@ -155,17 +155,12 @@ jobs:
           body: |
             ## Static Binaries
 
-            This release includes statically compiled binaries with build provenance attestations.
-
-            Artifacts are named `<tool>-<arch>` (for example `curl-amd64` and `curl-arm64`).
-
-            ### Architectures
-            - `amd64` (x86_64)
-            - `arm64` (aarch64)
+            Statically linked binaries for `amd64` (x86_64) and `arm64` (aarch64),
+            named `<tool>-<arch>` (for example `curl-amd64`).
 
             ### Verification
 
-            Verify build provenance using the [GitHub CLI](https://cli.github.com/):
+            Verify build provenance with the [GitHub CLI](https://cli.github.com/):
 
             ```bash
             gh attestation verify curl-amd64 \
@@ -175,39 +170,10 @@ jobs:
               --deny-self-hosted-runners
             ```
 
-            Or use the wrapper script:
-
-            ```bash
-            ./scripts/verify.sh ${{ needs.verify-tag.outputs.tag }} curl-amd64 SHA256SUMS.txt
-            ```
-
-            `--cert-identity` pins both the signing workflow and the tag it ran
-            from (including for `SHA256SUMS.txt`, which is also a provenance subject).
-            `--signer-workflow` matches only the workflow path, so on its
-            own it would accept an attestation produced from any ref.
-
-            ### Checksums
-
-            See `SHA256SUMS.txt` for file checksums. That file is attested;
-            verify it with `gh attestation verify SHA256SUMS.txt` using the
-            same flags as above.
-
-            ### SBOM
-
-            Each binary has a signed SPDX 2.3 SBOM attestation listing the
-            pinned tool tarball and the prefix libraries linked into it:
-
-            ```bash
-            gh attestation verify curl-amd64 \
-              --repo ${{ github.repository }} \
-              --cert-identity https://github.com/${{ github.repository }}/.github/workflows/attest.yml@refs/tags/${{ needs.verify-tag.outputs.tag }} \
-              --source-ref refs/tags/${{ needs.verify-tag.outputs.tag }} \
-              --deny-self-hosted-runners \
-              --predicate-type https://spdx.dev/Document/v2.3 \
-              --format json
-            ```
-
-            Or: `VERIFY_PREDICATE_TYPE=https://spdx.dev/Document/v2.3 ./scripts/verify.sh ${{ needs.verify-tag.outputs.tag }} curl-amd64`
+            The same command verifies `SHA256SUMS.txt`. Add
+            `--predicate-type https://spdx.dev/Document/v2.3` to verify a
+            binary's SBOM. The [README](https://github.com/${{ github.repository }}#verify-provenance-recommended)
+            covers checksums, SBOMs, and `scripts/verify.sh`.
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
