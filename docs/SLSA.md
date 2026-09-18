@@ -70,8 +70,10 @@ bit-for-bit reproducible (Build L4-class).
   ([`.github/dependabot.yml`](../.github/dependabot.yml)). Tarball pins in
   `versions.mk` are outside Dependabot; watching those is
   [#46](https://github.com/colinmcintosh/static-tools/issues/46).
-- Releases are published as GitHub Releases. Treat released assets as
-  immutable: verify them, do not re-tag or overwrite.
+- Releases are published as GitHub Releases with immutable releases enabled:
+  once a release is published, GitHub rejects changes to its assets and
+  tag, and a deleted release's tag name cannot be reused. `release.yml`
+  uploads to a draft and publishes it as the last step.
 
 ## Verify
 
