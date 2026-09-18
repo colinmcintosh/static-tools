@@ -103,24 +103,46 @@ test-%:
 	@echo "==> Testing $*"
 	$(MAKE) -C tools/$* test ARCH=$(ARCH)
 
-# Pinned hadolint v2.12.0 (SHA256 from GitHub release checksum files)
+# Pinned linters. Version and SHA256 live only here; `make lint` downloads
+# each archive/binary, verifies the checksum, then runs the tool. CI calls
+# this target instead of re-pinning the same values.
+#
+# hadolint v2.12.0 — SHA256 from the GitHub release checksum files
+# shellcheck v0.11.0 — SHA256 of the official linux tar.xz archives
+# actionlint v1.7.12 — SHA256 from actionlint_1.7.12_checksums.txt
+# actionlint covers workflow YAML and shellchecks inline `run:` blocks,
+# which is where most of the shell in this repo lives.
 HADOLINT_VERSION := 2.12.0
 HADOLINT_SHA256_amd64 := 56de6d5e5ec427e17b74fa48d51271c7fc0d61244bf5c90e828aab8362d55010
 HADOLINT_SHA256_arm64 := 5798551bf19f33951881f15eb238f90aef023f11e7ec7e9f4c37961cb87c5df6
+SHELLCHECK_VERSION := 0.11.0
+SHELLCHECK_SHA256_amd64 := 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+SHELLCHECK_SHA256_arm64 := 12b331c1d2db6b9eb13cfca64306b1b157a86eb69db83023e261eaa7e7c14588
+ACTIONLINT_VERSION := 1.7.12
+ACTIONLINT_SHA256_amd64 := 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+ACTIONLINT_SHA256_arm64 := 325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6
 
-# Lint Dockerfiles and scripts
+# Lint Dockerfiles, scripts, and workflows
 .PHONY: lint
 lint:
-	@echo "==> Linting Dockerfiles"
+	@echo "==> Linting Dockerfiles, scripts, and workflows"
 	@HADOLINT_SHA256="$(HADOLINT_SHA256_$(HOST_ARCH))"; \
+	SHELLCHECK_SHA256="$(SHELLCHECK_SHA256_$(HOST_ARCH))"; \
+	ACTIONLINT_SHA256="$(ACTIONLINT_SHA256_$(HOST_ARCH))"; \
 	if [ "$(HOST_ARCH)" = "amd64" ]; then \
 		HADOLINT_ASSET="hadolint-Linux-x86_64"; \
+		SHELLCHECK_ASSET="shellcheck-v$(SHELLCHECK_VERSION).linux.x86_64.tar.xz"; \
+		ACTIONLINT_ASSET="actionlint_$(ACTIONLINT_VERSION)_linux_amd64.tar.gz"; \
 	else \
 		HADOLINT_ASSET="hadolint-Linux-arm64"; \
+		SHELLCHECK_ASSET="shellcheck-v$(SHELLCHECK_VERSION).linux.aarch64.tar.xz"; \
+		ACTIONLINT_ASSET="actionlint_$(ACTIONLINT_VERSION)_linux_arm64.tar.gz"; \
 	fi; \
 	HADOLINT=$$(command -v hadolint 2>/dev/null || echo ""); \
 	if [ -n "$$HADOLINT" ] && [ -x "$$HADOLINT" ] && echo "$$HADOLINT_SHA256  $$HADOLINT" | sha256sum -c - >/dev/null 2>&1; then \
 		true; \
+	elif echo "$$HADOLINT_SHA256  /tmp/hadolint" | sha256sum -c - >/dev/null 2>&1; then \
+		HADOLINT=/tmp/hadolint; \
 	else \
 		echo "Installing hadolint v$(HADOLINT_VERSION)..."; \
 		wget -qO /tmp/hadolint "https://github.com/hadolint/hadolint/releases/download/v$(HADOLINT_VERSION)/$$HADOLINT_ASSET"; \
@@ -128,13 +150,38 @@ lint:
 		chmod +x /tmp/hadolint; \
 		HADOLINT=/tmp/hadolint; \
 	fi; \
+	if echo "$$SHELLCHECK_SHA256  /tmp/$$SHELLCHECK_ASSET" | sha256sum -c - >/dev/null 2>&1; then \
+		true; \
+	else \
+		echo "Installing shellcheck v$(SHELLCHECK_VERSION)..."; \
+		wget -qO "/tmp/$$SHELLCHECK_ASSET" "https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/$$SHELLCHECK_ASSET"; \
+		echo "$$SHELLCHECK_SHA256  /tmp/$$SHELLCHECK_ASSET" | sha256sum -c -; \
+	fi; \
+	tar --no-same-owner -xJf "/tmp/$$SHELLCHECK_ASSET" -C /tmp; \
+	SHELLCHECK="/tmp/shellcheck-v$(SHELLCHECK_VERSION)/shellcheck"; \
+	chmod +x "$$SHELLCHECK"; \
+	if echo "$$ACTIONLINT_SHA256  /tmp/$$ACTIONLINT_ASSET" | sha256sum -c - >/dev/null 2>&1; then \
+		true; \
+	else \
+		echo "Installing actionlint v$(ACTIONLINT_VERSION)..."; \
+		wget -qO "/tmp/$$ACTIONLINT_ASSET" "https://github.com/rhysd/actionlint/releases/download/v$(ACTIONLINT_VERSION)/$$ACTIONLINT_ASSET"; \
+		echo "$$ACTIONLINT_SHA256  /tmp/$$ACTIONLINT_ASSET" | sha256sum -c -; \
+	fi; \
+	tar --no-same-owner -xzf "/tmp/$$ACTIONLINT_ASSET" -C /tmp actionlint; \
+	ACTIONLINT=/tmp/actionlint; \
+	chmod +x "$$ACTIONLINT"; \
+	echo "==> Linting Dockerfiles"; \
 	$$HADOLINT --config .hadolint.yaml builder/Dockerfile || exit 1; \
 	$$HADOLINT --config .hadolint.yaml deps/Dockerfile || exit 1; \
 	$$HADOLINT --config .hadolint.yaml scripts/Dockerfile.dns-test-server || exit 1; \
 	for tool in $(TOOLS); do \
 		$$HADOLINT --config .hadolint.yaml tools/$$tool/Dockerfile || exit 1; \
-	done
-	@echo "✓ Lint passed"
+	done; \
+	echo "==> Linting scripts"; \
+	$$SHELLCHECK scripts/*.sh || exit 1; \
+	echo "==> Linting workflows"; \
+	$$ACTIONLINT -shellcheck "$$SHELLCHECK" || exit 1; \
+	echo "✓ Lint passed"
 
 # Clean build artifacts
 .PHONY: clean
@@ -171,7 +218,7 @@ help:
 	@echo "  make build-all      Build all tools for all architectures (amd64, arm64)"
 	@echo "  make test           Run tests for all tools"
 	@echo "  make test-curl      Run tests for a specific tool"
-	@echo "  make lint           Lint Dockerfiles with hadolint"
+	@echo "  make lint           Lint Dockerfiles, scripts, and workflows"
 	@echo "  make sbom           Generate SPDX SBOMs from versions.mk pins"
 	@echo "  make clean          Remove build artifacts"
 	@echo "  make list           List available tools"

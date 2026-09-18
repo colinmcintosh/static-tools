@@ -99,6 +99,8 @@ export -f verify_one
 export REPO PREDICATE_TYPE cert_identity tag
 
 # xargs exits non-zero if any invocation failed.
+# $1 is expanded by the inner bash that xargs starts, not this script.
+# shellcheck disable=SC2016
 if ! printf '%s\0' "$@" | xargs -0 -n1 -P"${JOBS}" bash -c 'verify_one "$1"' _; then
     echo "ERROR: attestation verification failed" >&2
     exit 1
