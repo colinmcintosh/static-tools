@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG NMAP_VERSION
+ARG NMAP_SOURCE_URL
 ARG NMAP_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -24,7 +25,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CXXFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://nmap.org/dist/nmap-${NMAP_VERSION}.tar.bz2" -O nmap.tar.bz2 && \
+RUN wget -q "${NMAP_SOURCE_URL}" -O nmap.tar.bz2 && \
     echo "${NMAP_SOURCE_SHA256}  nmap.tar.bz2" | sha256sum -c -
 
 # Nmap's OS-detection engine (FPEngine.cc/FPModel.cc) unconditionally calls

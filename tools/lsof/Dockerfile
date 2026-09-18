@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG LSOF_VERSION
+ARG LSOF_SOURCE_URL
 ARG LSOF_SOURCE_SHA256
 ARG TARGETARCH
 
@@ -14,7 +15,7 @@ ENV CFLAGS="-Os -fPIE -ftls-model=local-exec -fstack-protector-strong -D_FORTIFY
     LDFLAGS="-static-pie"
 
 WORKDIR /src
-RUN wget -q "https://github.com/lsof-org/lsof/releases/download/${LSOF_VERSION}/lsof-${LSOF_VERSION}.tar.gz" -O lsof.tar.gz && \
+RUN wget -q "${LSOF_SOURCE_URL}" -O lsof.tar.gz && \
     echo "${LSOF_SOURCE_SHA256}  lsof.tar.gz" | sha256sum -c -
 
 # lsof-org/lsof ships a pre-generated Autotools `configure`, not the old

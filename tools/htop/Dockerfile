@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG HTOP_VERSION
+ARG HTOP_SOURCE_URL
 ARG HTOP_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -19,7 +20,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://github.com/htop-dev/htop/releases/download/${HTOP_VERSION}/htop-${HTOP_VERSION}.tar.xz" -O htop.tar.xz && \
+RUN wget -q "${HTOP_SOURCE_URL}" -O htop.tar.xz && \
     echo "${HTOP_SOURCE_SHA256}  htop.tar.xz" | sha256sum -c -
 
 RUN tar xf htop.tar.xz && \

@@ -45,6 +45,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/wget: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg WGET_VERSION=$(WGET_VERSION) \
+		--build-arg WGET_SOURCE_URL=$(WGET_SOURCE_URL) \
 		--build-arg WGET_SOURCE_SHA256=$(WGET_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

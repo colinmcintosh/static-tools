@@ -10,6 +10,7 @@
 include ../../deps/versions.mk
 
 TREE_VERSION := 2.3.2
+# GitLab forge archive; upstream does not upload a stored release tarball.
 TREE_SOURCE_URL := https://gitlab.com/OldManProgrammer/unix-tree/-/archive/$(TREE_VERSION)/unix-tree-$(TREE_VERSION).tar.gz
 TREE_SOURCE_SHA256 := 513a53cbc42ca1f4ea06af2bab1f5283524a3848266b1d162416f8033afc4985
 

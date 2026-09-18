@@ -30,6 +30,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/file $(TOOL_OUT_DIR)/$(ARCH)/magic.mgc &: Dockerfile ver
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg FILE_VERSION=$(FILE_VERSION) \
+		--build-arg FILE_SOURCE_URL=$(FILE_SOURCE_URL) \
 		--build-arg FILE_SOURCE_SHA256=$(FILE_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

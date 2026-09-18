@@ -19,6 +19,13 @@ bit-for-bit reproducible (Build L4-class).
   Dockerfiles must not `apk add`.
 - Upstream tarballs are fetched over HTTPS and verified with SHA256 pins in
   each tool's `versions.mk` (shared libraries live in `deps/versions.mk`).
+  Pins that publish a detached signature are also audited on every CI run
+  and before a release deps build by
+  [`scripts/verify-upstream-signatures.sh`](../scripts/verify-upstream-signatures.sh):
+  the recorded SHA256 must be the hash of a tarball that verifies with a
+  committed key under
+  [`scripts/upstream-keys/`](../scripts/upstream-keys/). In-build SHA256
+  remains the bit-identity check extracted by Docker.
 - The shared static prefix is built once per architecture in the same release
   run (no cross-run cache). `deps`, `build`, and `manifests` have
   `contents: read` only.

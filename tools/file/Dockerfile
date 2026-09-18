@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG FILE_VERSION
+ARG FILE_SOURCE_URL
 ARG FILE_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -19,7 +20,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://astron.com/pub/file/file-${FILE_VERSION}.tar.gz" -O file.tar.gz && \
+RUN wget -q "${FILE_SOURCE_URL}" -O file.tar.gz && \
     echo "${FILE_SOURCE_SHA256}  file.tar.gz" | sha256sum -c -
 
 # magic.mgc is required at runtime. libmagic does not search next to the binary;

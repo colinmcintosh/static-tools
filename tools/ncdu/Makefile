@@ -30,6 +30,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/ncdu: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libncurs
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg NCDU_VERSION=$(NCDU_VERSION) \
+		--build-arg NCDU_SOURCE_URL=$(NCDU_SOURCE_URL) \
 		--build-arg NCDU_SOURCE_SHA256=$(NCDU_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

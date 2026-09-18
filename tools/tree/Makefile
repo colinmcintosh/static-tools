@@ -25,6 +25,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/tree: Dockerfile versions.mk
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg TREE_VERSION=$(TREE_VERSION) \
+		--build-arg TREE_SOURCE_URL=$(TREE_SOURCE_URL) \
 		--build-arg TREE_SOURCE_SHA256=$(TREE_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

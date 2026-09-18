@@ -45,6 +45,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/nethogs: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libpc
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg NETHOGS_VERSION=$(NETHOGS_VERSION) \
+		--build-arg NETHOGS_SOURCE_URL=$(NETHOGS_SOURCE_URL) \
 		--build-arg NETHOGS_SOURCE_SHA256=$(NETHOGS_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

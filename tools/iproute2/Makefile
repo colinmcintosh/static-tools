@@ -45,6 +45,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/ip $(TOOL_OUT_DIR)/$(ARCH)/ss &: Dockerfile versions.mk 
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg IPROUTE2_VERSION=$(IPROUTE2_VERSION) \
+		--build-arg IPROUTE2_SOURCE_URL=$(IPROUTE2_SOURCE_URL) \
 		--build-arg IPROUTE2_SOURCE_SHA256=$(IPROUTE2_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

@@ -264,29 +264,36 @@ RUN wget -q "${LZ4_URL}" -O lz4.tar.gz && \
     rm -f "${PREFIX}/lib/liblz4.so" "${PREFIX}/lib/liblz4.so."* && \
     cd /src && rm -rf lz4.tar.gz lz4-${LZ4_VERSION}
 
-# Drop perl from the exported prefix; tools only need headers and static libs.
-# Keep bin/openssl (static CLI) for tools/openssl.
-RUN rm -rf \
-        "${PREFIX}/bin/perl" \
-        "${PREFIX}/bin/perl${PERL_VERSION}" \
-        "${PREFIX}/lib/perl5" \
-        "${PREFIX}/lib/pkgconfig/perl.pc" \
-        "${PREFIX}/man" \
-        "${PREFIX}/share/man" && \
-    test -f "${PREFIX}/lib/libssl.a" && \
-    test -f "${PREFIX}/lib/libcrypto.a" && \
-    test -f "${PREFIX}/lib/libz.a" && \
-    test -f "${PREFIX}/lib/libnghttp2.a" && \
-    test -f "${PREFIX}/lib/libncursesw.a" && \
-    test -f "${PREFIX}/lib/libcap.a" && \
-    test -f "${PREFIX}/lib/libuv.a" && \
-    test -f "${PREFIX}/lib/liburcu.a" && \
-    test -f "${PREFIX}/lib/libjemalloc.a" && \
-    test -f "${PREFIX}/lib/libpcap.a" && \
-    test -f "${PREFIX}/lib/libxxhash.a" && \
-    test -f "${PREFIX}/lib/libzstd.a" && \
-    test -f "${PREFIX}/lib/liblz4.a" && \
-    test -x "${PREFIX}/bin/openssl"
+# Export only what tool builds need: static libs, headers, pkg-config
+# files, and the two binaries tools actually invoke (openssl CLI and
+# pkg-config). Drop perl, terminfo, man pages, and the rest of bin/.
+RUN export_root=/export && \
+    mkdir -p \
+        "${export_root}/bin" \
+        "${export_root}/lib/pkgconfig" \
+        "${export_root}/include" && \
+    cp "${PREFIX}/bin/openssl" "${PREFIX}/bin/pkg-config" "${export_root}/bin/" && \
+    cp "${PREFIX}/lib/"*.a "${export_root}/lib/" && \
+    cp "${PREFIX}/lib/pkgconfig/"*.pc "${export_root}/lib/pkgconfig/" && \
+    rm -f "${export_root}/lib/pkgconfig/perl.pc" && \
+    cp -a "${PREFIX}/include/." "${export_root}/include/" && \
+    test -f "${export_root}/lib/libssl.a" && \
+    test -f "${export_root}/lib/libcrypto.a" && \
+    test -f "${export_root}/lib/libz.a" && \
+    test -f "${export_root}/lib/libnghttp2.a" && \
+    test -f "${export_root}/lib/libncursesw.a" && \
+    test -f "${export_root}/lib/libcap.a" && \
+    test -f "${export_root}/lib/libuv.a" && \
+    test -f "${export_root}/lib/liburcu.a" && \
+    test -f "${export_root}/lib/libjemalloc.a" && \
+    test -f "${export_root}/lib/libpcap.a" && \
+    test -f "${export_root}/lib/libxxhash.a" && \
+    test -f "${export_root}/lib/libzstd.a" && \
+    test -f "${export_root}/lib/liblz4.a" && \
+    test -x "${export_root}/bin/openssl" && \
+    test -x "${export_root}/bin/pkg-config" && \
+    test ! -d "${export_root}/share/terminfo" && \
+    ! grep -l '^#!.*perl' "${export_root}/bin"/*
 
 FROM scratch AS export
-COPY --from=builder /opt/st /
+COPY --from=builder /export /

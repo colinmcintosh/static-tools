@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG JQ_VERSION
+ARG JQ_SOURCE_URL
 ARG JQ_SOURCE_SHA256
 ARG TARGETARCH
 
@@ -13,7 +14,7 @@ ENV CFLAGS="-Os -fPIE -ftls-model=local-exec -fstack-protector-strong -D_FORTIFY
     LDFLAGS="-static-pie"
 
 WORKDIR /src
-RUN wget -q "https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-${JQ_VERSION}.tar.gz" -O jq.tar.gz && \
+RUN wget -q "${JQ_SOURCE_URL}" -O jq.tar.gz && \
     echo "${JQ_SOURCE_SHA256}  jq.tar.gz" | sha256sum -c -
 
 RUN tar xzf jq.tar.gz && \

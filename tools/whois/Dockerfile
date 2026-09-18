@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG WHOIS_VERSION
+ARG WHOIS_SOURCE_URL
 ARG WHOIS_SOURCE_SHA256
 ARG TARGETARCH
 
@@ -18,7 +19,7 @@ ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2 -DHAVE_GETOPT
     LDFLAGS="-static-pie"
 
 WORKDIR /src
-RUN wget -q "https://github.com/rfc1036/whois/archive/refs/tags/v${WHOIS_VERSION}.tar.gz" -O whois.tar.gz && \
+RUN wget -q "${WHOIS_SOURCE_URL}" -O whois.tar.gz && \
     echo "${WHOIS_SOURCE_SHA256}  whois.tar.gz" | sha256sum -c -
 
 # No pkg-config in the builder image and no shared deps prefix linked, so

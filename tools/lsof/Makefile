@@ -25,6 +25,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/lsof: Dockerfile versions.mk
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg LSOF_VERSION=$(LSOF_VERSION) \
+		--build-arg LSOF_SOURCE_URL=$(LSOF_SOURCE_URL) \
 		--build-arg LSOF_SOURCE_SHA256=$(LSOF_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG SOCAT_VERSION
+ARG SOCAT_SOURCE_URL
 ARG SOCAT_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -20,7 +21,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     LIBS="-lssl -lcrypto -lz -ldl -lpthread"
 
 WORKDIR /src
-RUN wget -q "https://deb.debian.org/debian/pool/main/s/socat/socat_${SOCAT_VERSION}.orig.tar.bz2" -O socat.tar.bz2 && \
+RUN wget -q "${SOCAT_SOURCE_URL}" -O socat.tar.bz2 && \
     echo "${SOCAT_SOURCE_SHA256}  socat.tar.bz2" | sha256sum -c -
 
 RUN tar xjf socat.tar.bz2 && \

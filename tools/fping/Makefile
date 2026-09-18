@@ -25,6 +25,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/fping: Dockerfile versions.mk
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg FPING_VERSION=$(FPING_VERSION) \
+		--build-arg FPING_SOURCE_URL=$(FPING_SOURCE_URL) \
 		--build-arg FPING_SOURCE_SHA256=$(FPING_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

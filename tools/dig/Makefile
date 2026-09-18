@@ -47,6 +47,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/dig: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libuv.a
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg BIND9_VERSION=$(BIND9_VERSION) \
+		--build-arg BIND9_SOURCE_URL=$(BIND9_SOURCE_URL) \
 		--build-arg BIND9_SOURCE_SHA256=$(BIND9_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

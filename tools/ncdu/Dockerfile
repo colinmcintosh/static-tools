@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG NCDU_VERSION
+ARG NCDU_SOURCE_URL
 ARG NCDU_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -19,7 +20,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://dev.yorhel.nl/download/ncdu-${NCDU_VERSION}.tar.gz" -O ncdu.tar.gz && \
+RUN wget -q "${NCDU_SOURCE_URL}" -O ncdu.tar.gz && \
     echo "${NCDU_SOURCE_SHA256}  ncdu.tar.gz" | sha256sum -c -
 
 RUN tar xzf ncdu.tar.gz && \

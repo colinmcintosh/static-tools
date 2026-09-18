@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG IPROUTE2_VERSION
+ARG IPROUTE2_SOURCE_URL
 ARG IPROUTE2_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -20,7 +21,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -ftls-model=local-exec -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://www.kernel.org/pub/linux/utils/net/iproute2/iproute2-${IPROUTE2_VERSION}.tar.gz" -O iproute2.tar.gz && \
+RUN wget -q "${IPROUTE2_SOURCE_URL}" -O iproute2.tar.gz && \
     echo "${IPROUTE2_SOURCE_SHA256}  iproute2.tar.gz" | sha256sum -c -
 
 # iproute2 ships its own hand-rolled ./configure (not autoconf): it probes

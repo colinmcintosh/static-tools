@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG SYSSTAT_VERSION
+ARG SYSSTAT_SOURCE_URL
 ARG SYSSTAT_SOURCE_SHA256
 ARG TARGETARCH
 
@@ -20,7 +21,7 @@ ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fno-tree-slp
 COPY inject-sadc-sibling.sh sadc-sibling.inc /tmp/
 
 WORKDIR /src
-RUN wget -q "https://github.com/sysstat/sysstat/archive/refs/tags/v${SYSSTAT_VERSION}.tar.gz" -O sysstat.tar.gz && \
+RUN wget -q "${SYSSTAT_SOURCE_URL}" -O sysstat.tar.gz && \
     echo "${SYSSTAT_SOURCE_SHA256}  sysstat.tar.gz" | sha256sum -c -
 
 # sysstat ships a pre-generated ./configure (no autoreconf/bootstrap step).

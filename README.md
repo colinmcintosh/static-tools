@@ -320,22 +320,32 @@ To add a new tool (e.g., `dig`):
 
 2. Create `tools/dig/versions.mk` with pinned versions and `SBOM_LIBS`
    (the prefix libraries this tool actually links; empty is allowed and
-   must be written out):
+   must be written out). The download URL lives here, not in the Dockerfile:
    ```makefile
    DIG_VERSION := 9.18.24
+   DIG_SOURCE_URL := https://downloads.isc.org/isc/bind9/$(DIG_VERSION)/bind-$(DIG_VERSION).tar.xz
    DIG_SOURCE_SHA256 := <computed-hash>
    SBOM_LIBS := openssl
    ```
+   Prefer an uploaded release asset over a forge-generated archive. If
+   only a forge archive exists, say so in a comment next to the URL.
+   If upstream publishes a detached signature, add `*_SOURCE_SIG_URL`
+   and `*_SOURCE_KEY` and commit the ASCII-armored key under
+   `scripts/upstream-keys/`. Tools that reuse a prefix tarball (see
+   `libcap` / `zstd`) keep `*_URL` and `*_SHA256` in `deps/versions.mk`
+   instead of a second `*_SOURCE_URL`.
 
 3. Create `tools/dig/Dockerfile` following the curl pattern:
    - `FROM` the digest-pinned builder image (do not `apk add`)
    - `COPY --from=deps` the shared static prefix unless the tool does not link the prefix
+   - `ARG DIG_SOURCE_URL` and `wget -q "${DIG_SOURCE_URL}"` (never a literal URL)
    - Verify source tarballs with SHA256
    - Compile with `-fPIE` / `-static-pie` so the binary is a static PIE
    - Assert linkage with `readelf` (no `INTERP`, `Type: DYN`), not `file`
    - If the tool needs a new library, add it to `deps/` first
 
-4. Create `tools/dig/Makefile` with build targets
+4. Create `tools/dig/Makefile` with build targets. Pass the pin through:
+   `--build-arg DIG_SOURCE_URL=$(DIG_SOURCE_URL)` alongside VERSION and SHA256.
 
 5. Add `dig` to the `TOOLS` list in the root `Makefile`
 
@@ -363,7 +373,7 @@ Details are in [docs/SLSA.md](docs/SLSA.md). Summary:
 What determines the bits in a release binary is pinned:
 
 - **Builder image**: compiler, static libc, autotools, and headers, pinned by the multi-arch index digest (`BUILDER_DIGEST` in `deps/versions.mk`). Published and attested by `.github/workflows/builder.yml`.
-- **Source code**: tool tarballs verified with SHA256 checksums
+- **Source code**: tool tarballs verified with SHA256 checksums; signed pins are also audited with committed upstream keys
 - **C libraries**: built from upstream tarballs pinned by URL + SHA256 (`deps/versions.mk`)
 - **GitHub Actions**: pinned by commit SHA
 - **Test runtime**: Alpine pinned by the multi-arch index digest (`ALPINE_DIGEST` in `deps/versions.mk`)

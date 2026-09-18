@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG STRACE_VERSION
+ARG STRACE_SOURCE_URL
 ARG STRACE_SOURCE_SHA256
 ARG TARGETARCH
 
@@ -13,7 +14,7 @@ ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"
 
 WORKDIR /src
-RUN wget -q "https://github.com/strace/strace/releases/download/v${STRACE_VERSION}/strace-${STRACE_VERSION}.tar.xz" -O strace.tar.xz && \
+RUN wget -q "${STRACE_SOURCE_URL}" -O strace.tar.xz && \
     echo "${STRACE_SOURCE_SHA256}  strace.tar.xz" | sha256sum -c -
 
 RUN tar xf strace.tar.xz && \

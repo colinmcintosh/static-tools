@@ -45,6 +45,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/iperf3: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg IPERF3_VERSION=$(IPERF3_VERSION) \
+		--build-arg IPERF3_SOURCE_URL=$(IPERF3_SOURCE_URL) \
 		--build-arg IPERF3_SOURCE_SHA256=$(IPERF3_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \
