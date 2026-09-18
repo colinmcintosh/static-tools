@@ -13,22 +13,14 @@ fail() {
 }
 
 # Lay out artifacts the way download-artifact does: one directory per build
-# artifact, plus a deps prefix that must be ignored.
+# artifact (<tool>-<arch>), plus a deps prefix that must be ignored.
 read -r -a expected < <(make -s --no-print-directory -C "${ROOT}" print-artifacts)
-for name in "${expected[@]}"; do
-    arch=${name##*-}
-    bundle=${name%-*}
-    case "${bundle}" in
-        mtr-packet) bundle="mtr" ;;
-        magic.mgc) bundle="file" ;;
-        nmap-services) bundle="nmap" ;;
-        ip|ss) bundle="iproute2" ;;
-        getcap|setcap) bundle="libcap" ;;
-        mpstat|iostat|pidstat|sar|sadc) bundle="sysstat" ;;
-    esac
-    mkdir -p "${TMP}/artifacts/${bundle}-${arch}"
-    echo "${name}" > "${TMP}/artifacts/${bundle}-${arch}/${name}"
-done
+while read -r tool name; do
+    for arch in amd64 arm64; do
+        mkdir -p "${TMP}/artifacts/${tool}-${arch}"
+        echo "${name}-${arch}" > "${TMP}/artifacts/${tool}-${arch}/${name}-${arch}"
+    done
+done < <(make -s --no-print-directory -C "${ROOT}" print-tool-files)
 mkdir -p "${TMP}/artifacts/deps-prefix-amd64/bin"
 echo x > "${TMP}/artifacts/deps-prefix-amd64/bin/tool-amd64"
 

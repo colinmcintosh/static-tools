@@ -286,7 +286,7 @@ make clean    # Remove build artifacts
 
 ```
 static-tools/
-├── Makefile                    # Root build entry point (`TOOLS` list)
+├── Makefile                    # Root build entry point
 ├── builder/                    # Digest-pinned builder image (Dockerfile, apk-lock.txt)
 ├── docs/SLSA.md                # Build L3 claim and verification
 ├── deps/                       # Shared static library prefix
@@ -294,6 +294,7 @@ static-tools/
 │   ├── Makefile
 │   └── versions.mk
 ├── tools/
+│   ├── files.mk                # Files each tool ships (the one list)
 │   └── <name>/                 # One directory per tool; `curl/` is the reference
 │       ├── Dockerfile
 │       ├── Makefile
@@ -349,17 +350,13 @@ To add a new tool (e.g., `dig`):
 4. Create `tools/dig/Makefile` with build targets. Pass the pin through:
    `--build-arg DIG_SOURCE_URL=$(DIG_SOURCE_URL)` alongside VERSION and SHA256.
 
-5. Add `dig` to the `TOOLS` list in the root `Makefile`
-
-6. Add `dig` to the release build matrix in `.github/workflows/attest.yml`
-   (CI finds tools from `tools/`). The release checks the built binaries
-   against `make print-artifacts` and derives the `attest-sbom` matrix from
-   `SHA256SUMS.txt`, so there are no counts to bump. A tool that ships more
-   than one file (like `mtr-packet` or `magic.mgc`) must list them in the
-   *Check and stage release files* step in `attest.yml` and in `ARTIFACTS`
-   in the root `Makefile`; if they share a tool tarball but not its
-   libraries, they also need `SBOM_LIBS_<name> :=` in that tool's
-   `versions.mk`.
+5. There is no tool list to update: the root `Makefile`, CI, and the
+   release all treat every `tools/<name>/` directory as a tool. A tool that
+   ships anything besides one binary named after its directory (like
+   `mtr-packet` or `magic.mgc`) lists its files in `FILES_<name>` in
+   `tools/files.mk`, and non-executables also go in `DATA_FILES`. If those
+   files share a tool tarball but not its libraries, they also need
+   `SBOM_LIBS_<name> :=` in that tool's `versions.mk`.
 
 ## Supply Chain Security
 
