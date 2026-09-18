@@ -81,10 +81,8 @@ jobs:
         include:
           - arch: amd64
             runner: ubuntu-24.04
-            platform: linux/amd64
           - arch: arm64
             runner: ubuntu-24.04-arm
-            platform: linux/arm64
 
     steps:
       - name: Checkout repository
@@ -211,7 +209,6 @@ jobs:
     needs: [manifests]
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
       actions: read
       id-token: write
       attestations: write
@@ -232,7 +229,6 @@ jobs:
     needs: [manifests, attest]
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
       actions: read
       id-token: write
       attestations: write
