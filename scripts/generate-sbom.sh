@@ -12,9 +12,12 @@
 # tool's versions.mk (or SBOM_LIBS_<name> for extra artifacts).
 set -euo pipefail
 
-ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 
-exec python3 - "${ROOT}" "$@" <<'PY'
+# versions_mk.py (the shared versions.mk reader) sits next to this script.
+export PYTHONPATH="${SCRIPT_DIR}"
+exec python3 -B - "${ROOT}" "$@" <<'PY'
 """Emit deterministic SPDX 2.3 JSON from versions.mk pins."""
 from __future__ import annotations
 
@@ -25,8 +28,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-ASSIGN = re.compile(r"^([A-Za-z0-9_.-]+)[ \t]*:=[ \t]*(.*)$")
-EXPAND = re.compile(r"\$\(([^)]+)\)")
+from versions_mk import expand_all, parse_mk
+
 ARTIFACT_RE = re.compile(r"^(.+)-(amd64|arm64)$")
 
 # Extra release artifacts that do not share a tools/<name>/ directory.
@@ -66,43 +69,6 @@ NAMESPACE_BASE = "https://github.com/colinmcintosh/static-tools/sbom"
 def die(msg: str) -> None:
     print(f"ERROR: {msg}", file=sys.stderr)
     raise SystemExit(1)
-
-
-def parse_mk(path: Path) -> dict[str, str]:
-    assignments: dict[str, str] = {}
-    for raw in path.read_text().splitlines():
-        line = raw.split("#", 1)[0].rstrip()
-        if not line or line.startswith("include "):
-            continue
-        match = ASSIGN.match(line)
-        if not match:
-            continue
-        assignments[match.group(1)] = match.group(2)
-    return assignments
-
-
-def expand_value(value: str, env: dict[str, str]) -> str:
-    previous = None
-    while previous != value:
-        previous = value
-        value = EXPAND.sub(lambda m: env.get(m.group(1), m.group(0)), value)
-    return value
-
-
-def expand_all(assignments: dict[str, str], base: dict[str, str] | None = None) -> dict[str, str]:
-    env = dict(base or {})
-    env.update(assignments)
-    # Multi-pass so later keys can reference earlier ones and vice versa.
-    for _ in range(len(env) + 1):
-        changed = False
-        for key, val in list(env.items()):
-            expanded = expand_value(val, env)
-            if expanded != val:
-                env[key] = expanded
-                changed = True
-        if not changed:
-            break
-    return env
 
 
 def load_deps(root: Path) -> dict[str, str]:
