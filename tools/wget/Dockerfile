@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG WGET_VERSION
+ARG WGET_SOURCE_URL
 ARG WGET_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -19,7 +20,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://ftp.gnu.org/gnu/wget/wget-${WGET_VERSION}.tar.gz" -O wget.tar.gz && \
+RUN wget -q "${WGET_SOURCE_URL}" -O wget.tar.gz && \
     echo "${WGET_SOURCE_SHA256}  wget.tar.gz" | sha256sum -c -
 
 RUN tar xzf wget.tar.gz && \

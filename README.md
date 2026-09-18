@@ -320,22 +320,27 @@ To add a new tool (e.g., `dig`):
 
 2. Create `tools/dig/versions.mk` with pinned versions and `SBOM_LIBS`
    (the prefix libraries this tool actually links; empty is allowed and
-   must be written out):
+   must be written out). The download URL lives here, not in the Dockerfile:
    ```makefile
    DIG_VERSION := 9.18.24
+   DIG_SOURCE_URL := https://downloads.isc.org/isc/bind9/$(DIG_VERSION)/bind-$(DIG_VERSION).tar.xz
    DIG_SOURCE_SHA256 := <computed-hash>
    SBOM_LIBS := openssl
    ```
+   Tools that reuse a prefix tarball (see `libcap` / `zstd`) keep `*_URL`
+   and `*_SHA256` in `deps/versions.mk` instead of a second `*_SOURCE_URL`.
 
 3. Create `tools/dig/Dockerfile` following the curl pattern:
    - `FROM` the digest-pinned builder image (do not `apk add`)
    - `COPY --from=deps` the shared static prefix unless the tool does not link the prefix
+   - `ARG DIG_SOURCE_URL` and `wget -q "${DIG_SOURCE_URL}"` (never a literal URL)
    - Verify source tarballs with SHA256
    - Compile with `-fPIE` / `-static-pie` so the binary is a static PIE
    - Assert linkage with `readelf` (no `INTERP`, `Type: DYN`), not `file`
    - If the tool needs a new library, add it to `deps/` first
 
-4. Create `tools/dig/Makefile` with build targets
+4. Create `tools/dig/Makefile` with build targets. Pass the pin through:
+   `--build-arg DIG_SOURCE_URL=$(DIG_SOURCE_URL)` alongside VERSION and SHA256.
 
 5. Add `dig` to the `TOOLS` list in the root `Makefile`
 

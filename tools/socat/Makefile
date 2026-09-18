@@ -30,6 +30,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/socat: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg SOCAT_VERSION=$(SOCAT_VERSION) \
+		--build-arg SOCAT_SOURCE_URL=$(SOCAT_SOURCE_URL) \
 		--build-arg SOCAT_SOURCE_SHA256=$(SOCAT_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

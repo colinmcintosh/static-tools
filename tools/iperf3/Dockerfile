@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG IPERF3_VERSION
+ARG IPERF3_SOURCE_URL
 ARG IPERF3_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -19,7 +20,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://github.com/esnet/iperf/releases/download/${IPERF3_VERSION}/iperf-${IPERF3_VERSION}.tar.gz" -O iperf3.tar.gz && \
+RUN wget -q "${IPERF3_SOURCE_URL}" -O iperf3.tar.gz && \
     echo "${IPERF3_SOURCE_SHA256}  iperf3.tar.gz" | sha256sum -c -
 
 RUN tar xzf iperf3.tar.gz && \

@@ -45,6 +45,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/mtr $(TOOL_OUT_DIR)/$(ARCH)/mtr-packet &: Dockerfile ver
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg MTR_VERSION=$(MTR_VERSION) \
+		--build-arg MTR_SOURCE_URL=$(MTR_SOURCE_URL) \
 		--build-arg MTR_SOURCE_SHA256=$(MTR_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

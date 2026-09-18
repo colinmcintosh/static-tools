@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG LESS_VERSION
+ARG LESS_SOURCE_URL
 ARG LESS_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -19,7 +20,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://www.greenwoodsoftware.com/less/less-${LESS_VERSION}.tar.gz" -O less.tar.gz && \
+RUN wget -q "${LESS_SOURCE_URL}" -O less.tar.gz && \
     echo "${LESS_SOURCE_SHA256}  less.tar.gz" | sha256sum -c -
 
 # less's own configure (not autoconf-generated boilerplate, but the same

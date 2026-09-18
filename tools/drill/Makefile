@@ -47,6 +47,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/drill: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg LDNS_VERSION=$(LDNS_VERSION) \
+		--build-arg LDNS_SOURCE_URL=$(LDNS_SOURCE_URL) \
 		--build-arg LDNS_SOURCE_SHA256=$(LDNS_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

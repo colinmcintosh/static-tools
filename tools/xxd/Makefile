@@ -25,6 +25,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/xxd: Dockerfile versions.mk
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg XXD_VERSION=$(XXD_VERSION) \
+		--build-arg XXD_SOURCE_URL=$(XXD_SOURCE_URL) \
 		--build-arg XXD_SOURCE_SHA256=$(XXD_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

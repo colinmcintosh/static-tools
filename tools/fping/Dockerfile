@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG FPING_VERSION
+ARG FPING_SOURCE_URL
 ARG FPING_SOURCE_SHA256
 ARG TARGETARCH
 
@@ -13,7 +14,7 @@ ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"
 
 WORKDIR /src
-RUN wget -q "https://github.com/schweikert/fping/releases/download/v${FPING_VERSION}/fping-${FPING_VERSION}.tar.gz" -O fping.tar.gz && \
+RUN wget -q "${FPING_SOURCE_URL}" -O fping.tar.gz && \
     echo "${FPING_SOURCE_SHA256}  fping.tar.gz" | sha256sum -c -
 
 RUN tar xzf fping.tar.gz && \

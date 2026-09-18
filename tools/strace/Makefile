@@ -25,6 +25,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/strace: Dockerfile versions.mk
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg STRACE_VERSION=$(STRACE_VERSION) \
+		--build-arg STRACE_SOURCE_URL=$(STRACE_SOURCE_URL) \
 		--build-arg STRACE_SOURCE_SHA256=$(STRACE_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

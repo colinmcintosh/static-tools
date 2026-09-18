@@ -30,6 +30,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/htop: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libncurs
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg HTOP_VERSION=$(HTOP_VERSION) \
+		--build-arg HTOP_SOURCE_URL=$(HTOP_SOURCE_URL) \
 		--build-arg HTOP_SOURCE_SHA256=$(HTOP_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

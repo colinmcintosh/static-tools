@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG NETHOGS_VERSION
+ARG NETHOGS_SOURCE_URL
 ARG NETHOGS_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -20,7 +21,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CXXFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2 -std=c++14 -Wno-missing-field-initializers"
 
 WORKDIR /src
-RUN wget -q "https://github.com/raboof/nethogs/archive/refs/tags/v${NETHOGS_VERSION}.tar.gz" -O nethogs.tar.gz && \
+RUN wget -q "${NETHOGS_SOURCE_URL}" -O nethogs.tar.gz && \
     echo "${NETHOGS_SOURCE_SHA256}  nethogs.tar.gz" | sha256sum -c -
 
 # nethogs ships a plain (non-autotools) Makefile. The real link recipe

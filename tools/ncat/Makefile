@@ -36,6 +36,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/ncat: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg NMAP_VERSION=$(NMAP_VERSION) \
+		--build-arg NMAP_SOURCE_URL=$(NMAP_SOURCE_URL) \
 		--build-arg NMAP_SOURCE_SHA256=$(NMAP_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

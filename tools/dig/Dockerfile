@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG BIND9_VERSION
+ARG BIND9_SOURCE_URL
 ARG BIND9_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -19,7 +20,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -ftls-model=local-exec -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://downloads.isc.org/isc/bind9/${BIND9_VERSION}/bind-${BIND9_VERSION}.tar.xz" -O bind.tar.xz && \
+RUN wget -q "${BIND9_SOURCE_URL}" -O bind.tar.xz && \
     echo "${BIND9_SOURCE_SHA256}  bind.tar.xz" | sha256sum -c -
 
 # Permanent pin on BIND 9.16.x. Later branches do not support static-pie dig.

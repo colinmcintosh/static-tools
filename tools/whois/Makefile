@@ -25,6 +25,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/whois: Dockerfile versions.mk
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg WHOIS_VERSION=$(WHOIS_VERSION) \
+		--build-arg WHOIS_SOURCE_URL=$(WHOIS_SOURCE_URL) \
 		--build-arg WHOIS_SOURCE_SHA256=$(WHOIS_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

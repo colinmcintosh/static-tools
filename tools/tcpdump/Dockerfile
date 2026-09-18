@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG TCPDUMP_VERSION
+ARG TCPDUMP_SOURCE_URL
 ARG TCPDUMP_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -19,7 +20,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://www.tcpdump.org/release/tcpdump-${TCPDUMP_VERSION}.tar.gz" -O tcpdump.tar.gz && \
+RUN wget -q "${TCPDUMP_SOURCE_URL}" -O tcpdump.tar.gz && \
     echo "${TCPDUMP_SOURCE_SHA256}  tcpdump.tar.gz" | sha256sum -c -
 
 RUN tar xzf tcpdump.tar.gz && \

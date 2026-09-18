@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG RSYNC_VERSION
+ARG RSYNC_SOURCE_URL
 ARG RSYNC_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -19,7 +20,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://github.com/RsyncProject/rsync/releases/download/v${RSYNC_VERSION}/rsync-${RSYNC_VERSION}.tar.gz" -O rsync.tar.gz && \
+RUN wget -q "${RSYNC_SOURCE_URL}" -O rsync.tar.gz && \
     echo "${RSYNC_SOURCE_SHA256}  rsync.tar.gz" | sha256sum -c -
 
 RUN tar xzf rsync.tar.gz && \

@@ -45,6 +45,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/less: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libncurs
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg LESS_VERSION=$(LESS_VERSION) \
+		--build-arg LESS_SOURCE_URL=$(LESS_SOURCE_URL) \
 		--build-arg LESS_SOURCE_SHA256=$(LESS_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

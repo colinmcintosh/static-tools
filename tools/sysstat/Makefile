@@ -29,6 +29,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/mpstat $(TOOL_OUT_DIR)/$(ARCH)/iostat $(TOOL_OUT_DIR)/$(
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg SYSSTAT_VERSION=$(SYSSTAT_VERSION) \
+		--build-arg SYSSTAT_SOURCE_URL=$(SYSSTAT_SOURCE_URL) \
 		--build-arg SYSSTAT_SOURCE_SHA256=$(SYSSTAT_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

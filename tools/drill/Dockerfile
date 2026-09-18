@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG LDNS_VERSION
+ARG LDNS_SOURCE_URL
 ARG LDNS_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -19,7 +20,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://nlnetlabs.nl/downloads/ldns/ldns-${LDNS_VERSION}.tar.gz" -O ldns.tar.gz && \
+RUN wget -q "${LDNS_SOURCE_URL}" -O ldns.tar.gz && \
     echo "${LDNS_SOURCE_SHA256}  ldns.tar.gz" | sha256sum -c -
 
 RUN tar xzf ldns.tar.gz && \

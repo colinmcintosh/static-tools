@@ -45,6 +45,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/curl: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg CURL_VERSION=$(CURL_VERSION) \
+		--build-arg CURL_SOURCE_URL=$(CURL_SOURCE_URL) \
 		--build-arg CURL_SOURCE_SHA256=$(CURL_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

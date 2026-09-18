@@ -45,6 +45,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/nmap $(TOOL_OUT_DIR)/$(ARCH)/nmap-services &: Dockerfile
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg NMAP_VERSION=$(NMAP_VERSION) \
+		--build-arg NMAP_SOURCE_URL=$(NMAP_SOURCE_URL) \
 		--build-arg NMAP_SOURCE_SHA256=$(NMAP_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

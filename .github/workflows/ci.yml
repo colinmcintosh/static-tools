@@ -205,6 +205,9 @@ jobs:
       - name: Lint Dockerfiles, scripts, and workflows
         run: make lint
 
+      - name: Test source URL wiring
+        run: scripts/assert-source-url-wired-test.sh
+
       - name: Test change detection
         run: scripts/ci-changed-tools-test.sh
 

@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG CURL_VERSION
+ARG CURL_SOURCE_URL
 ARG CURL_SOURCE_SHA256
 ARG TARGETARCH
 ARG PREFIX=/opt/st
@@ -20,7 +21,7 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
     CFLAGS="-Os -fPIE -ftls-model=local-exec -fstack-protector-strong -D_FORTIFY_SOURCE=2"
 
 WORKDIR /src
-RUN wget -q "https://curl.se/download/curl-${CURL_VERSION}.tar.gz" -O curl.tar.gz && \
+RUN wget -q "${CURL_SOURCE_URL}" -O curl.tar.gz && \
     echo "${CURL_SOURCE_SHA256}  curl.tar.gz" | sha256sum -c -
 
 RUN tar xzf curl.tar.gz && \

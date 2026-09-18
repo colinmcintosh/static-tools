@@ -36,6 +36,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/rsync: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libzstd
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg RSYNC_VERSION=$(RSYNC_VERSION) \
+		--build-arg RSYNC_SOURCE_URL=$(RSYNC_SOURCE_URL) \
 		--build-arg RSYNC_SOURCE_SHA256=$(RSYNC_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

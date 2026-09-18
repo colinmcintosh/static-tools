@@ -25,6 +25,7 @@ $(TOOL_OUT_DIR)/$(ARCH)/jq: Dockerfile versions.mk
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg JQ_VERSION=$(JQ_VERSION) \
+		--build-arg JQ_SOURCE_URL=$(JQ_SOURCE_URL) \
 		--build-arg JQ_SOURCE_SHA256=$(JQ_SOURCE_SHA256) \
 		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
 		--target export \

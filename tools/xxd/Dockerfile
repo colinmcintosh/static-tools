@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG XXD_VERSION
+ARG XXD_SOURCE_URL
 ARG XXD_SOURCE_SHA256
 ARG TARGETARCH
 
@@ -13,7 +14,7 @@ ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"
 
 WORKDIR /src
-RUN wget -q "https://github.com/xyproto/tinyxxd/archive/refs/tags/v${XXD_VERSION}.tar.gz" -O tinyxxd.tar.gz && \
+RUN wget -q "${XXD_SOURCE_URL}" -O tinyxxd.tar.gz && \
     echo "${XXD_SOURCE_SHA256}  tinyxxd.tar.gz" | sha256sum -c -
 
 RUN tar xzf tinyxxd.tar.gz && \

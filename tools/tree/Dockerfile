@@ -6,6 +6,7 @@ ARG BUILDER_DIGEST
 FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 
 ARG TREE_VERSION
+ARG TREE_SOURCE_URL
 ARG TREE_SOURCE_SHA256
 ARG TARGETARCH
 
@@ -13,7 +14,7 @@ ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"
 
 WORKDIR /src
-RUN wget -q "https://gitlab.com/OldManProgrammer/unix-tree/-/archive/${TREE_VERSION}/unix-tree-${TREE_VERSION}.tar.gz" -O unix-tree.tar.gz && \
+RUN wget -q "${TREE_SOURCE_URL}" -O unix-tree.tar.gz && \
     echo "${TREE_SOURCE_SHA256}  unix-tree.tar.gz" | sha256sum -c -
 
 RUN tar xzf unix-tree.tar.gz && \
