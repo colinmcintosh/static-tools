@@ -180,78 +180,46 @@ jobs:
         run: |
           make build-${{ matrix.tool }} ARCH=${{ matrix.arch }}
 
-      - name: Verify binary is a static PIE
+      # The Docker export copies all of /out/, which upstream build code can
+      # write to. Stage only the files this tool ships, by name, so an extra
+      # file (say, another tool's curl-amd64) is never uploaded.
+      - name: Check and stage release files
         env:
           TOOL: ${{ matrix.tool }}
           ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
+          data=()
           case "${TOOL}" in
-            mtr)
-              scripts/assert-static-elf.sh "dist/mtr/${ARCH}/mtr" "dist/mtr/${ARCH}/mtr-packet"
-              ;;
-            file)
-              scripts/assert-static-elf.sh "dist/file/${ARCH}/file"
-              ;;
-            iproute2)
-              scripts/assert-static-elf.sh "dist/iproute2/${ARCH}/ip" "dist/iproute2/${ARCH}/ss"
-              ;;
-            sysstat)
-              scripts/assert-static-elf.sh "dist/sysstat/${ARCH}/mpstat" "dist/sysstat/${ARCH}/iostat" "dist/sysstat/${ARCH}/pidstat" "dist/sysstat/${ARCH}/sar" "dist/sysstat/${ARCH}/sadc"
-              ;;
-            libcap)
-              scripts/assert-static-elf.sh "dist/libcap/${ARCH}/getcap" "dist/libcap/${ARCH}/setcap"
-              ;;
-            nmap)
-              scripts/assert-static-elf.sh "dist/nmap/${ARCH}/nmap"
-              ;;
-            *)
-              scripts/assert-static-elf.sh "dist/${TOOL}/${ARCH}/${TOOL}"
-              ;;
+            mtr) bins=(mtr mtr-packet) ;;
+            file) bins=(file); data=(magic.mgc) ;;
+            iproute2) bins=(ip ss) ;;
+            sysstat) bins=(mpstat iostat pidstat sar sadc) ;;
+            libcap) bins=(getcap setcap) ;;
+            nmap) bins=(nmap); data=(nmap-services) ;;
+            *) bins=("${TOOL}") ;;
           esac
-
-      - name: Rename artifacts with architecture suffix
-        run: |
-          cd dist/${{ matrix.tool }}/${{ matrix.arch }}
-          case "${{ matrix.tool }}" in
-            mtr)
-              for file in mtr mtr-packet; do
-                mv "$file" "$file-${{ matrix.arch }}"
-              done
-              ;;
-            file)
-              mv file "file-${{ matrix.arch }}"
-              mv magic.mgc "magic.mgc-${{ matrix.arch }}"
-              ;;
-            iproute2)
-              for file in ip ss; do
-                mv "$file" "$file-${{ matrix.arch }}"
-              done
-              ;;
-            sysstat)
-              for file in mpstat iostat pidstat sar sadc; do
-                mv "$file" "$file-${{ matrix.arch }}"
-              done
-              ;;
-            libcap)
-              for file in getcap setcap; do
-                mv "$file" "$file-${{ matrix.arch }}"
-              done
-              ;;
-            nmap)
-              mv nmap "nmap-${{ matrix.arch }}"
-              mv nmap-services "nmap-services-${{ matrix.arch }}"
-              ;;
-            *)
-              mv ${{ matrix.tool }} ${{ matrix.tool }}-${{ matrix.arch }}
-              ;;
-          esac
+          out="dist/${TOOL}/${ARCH}"
+          mkdir stage
+          for name in "${bins[@]}" "${data[@]}"; do
+            if [[ -L "${out}/${name}" || ! -f "${out}/${name}" ]]; then
+              echo "::error::${out}/${name} is missing or not a regular file"
+              exit 1
+            fi
+            cp "${out}/${name}" "stage/${name}-${ARCH}"
+          done
+          staged_bins=()
+          for name in "${bins[@]}"; do
+            staged_bins+=("stage/${name}-${ARCH}")
+          done
+          scripts/assert-static-elf.sh "${staged_bins[@]}"
+          ls -la stage
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.tool }}-${{ matrix.arch }}
-          path: dist/${{ matrix.tool }}/${{ matrix.arch }}/*-${{ matrix.arch }}
+          path: stage/
           if-no-files-found: error
           retention-days: 5
 
