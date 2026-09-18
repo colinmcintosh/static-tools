@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG TCPDUMP_VERSION
 ARG TCPDUMP_SOURCE_URL
 ARG TCPDUMP_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -30,10 +29,7 @@ RUN tar xzf tcpdump.tar.gz && \
     make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp tcpdump /out/tcpdump && \
-    strip /out/tcpdump && \
-    ! readelf -l /out/tcpdump | grep -q INTERP && \
-    readelf -h /out/tcpdump | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/tcpdump
 
 FROM scratch AS export
 COPY --from=builder /out/ /

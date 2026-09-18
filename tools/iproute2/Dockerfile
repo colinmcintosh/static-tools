@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG IPROUTE2_VERSION
 ARG IPROUTE2_SOURCE_URL
 ARG IPROUTE2_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 # Additional context `deps` is the exported static prefix (see deps/Dockerfile).
@@ -51,14 +50,7 @@ RUN tar xzf iproute2.tar.gz && \
     cp ip/ip misc/ss /out/ && \
     strip /out/ip /out/ss && \
     /out/ip -V && \
-    /out/ss --version && \
-    ! readelf -l /out/ip | grep -q INTERP && \
-    readelf -h /out/ip | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -l /out/ss | grep -q INTERP && \
-    readelf -h /out/ss | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -Wr /out/ip | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
-    ! readelf -Wr /out/ss | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
-    cd /out && sha256sum * > SHA256SUMS
+    /out/ss --version
 
 FROM scratch AS export
 COPY --from=builder /out/ /

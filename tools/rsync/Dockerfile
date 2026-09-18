@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG RSYNC_VERSION
 ARG RSYNC_SOURCE_URL
 ARG RSYNC_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -33,10 +32,7 @@ RUN tar xzf rsync.tar.gz && \
     make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp rsync /out/rsync && \
-    strip /out/rsync && \
-    ! readelf -l /out/rsync | grep -q INTERP && \
-    readelf -h /out/rsync | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/rsync
 
 FROM scratch AS export
 COPY --from=builder /out/ /

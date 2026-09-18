@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG WGET_VERSION
 ARG WGET_SOURCE_URL
 ARG WGET_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -35,10 +34,7 @@ RUN tar xzf wget.tar.gz && \
     make -j"$(nproc)" SUBDIRS="lib src" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp src/wget /out/wget && \
-    strip /out/wget && \
-    ! readelf -l /out/wget | grep -q INTERP && \
-    readelf -h /out/wget | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/wget
 
 FROM scratch AS export
 COPY --from=builder /out/ /

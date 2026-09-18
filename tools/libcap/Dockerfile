@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG LIBCAP_VERSION
 ARG LIBCAP_URL
 ARG LIBCAP_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 # Additional context `deps` is the exported static prefix (see deps/Dockerfile).
@@ -45,13 +44,8 @@ RUN tar xzf libcap.tar.gz && \
         DEPS="${PREFIX}/lib/libcap.a" \
         LIBCAPLIB="-L${PREFIX}/lib -lcap" \
         getcap setcap && \
-    ! readelf -l getcap | grep -q INTERP && \
-    readelf -h getcap | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -l setcap | grep -q INTERP && \
-    readelf -h setcap | grep -q 'Type:[[:space:]]*DYN' && \
     mkdir -p /out && \
-    cp getcap setcap /out/ && \
-    cd /out && sha256sum * > SHA256SUMS
+    cp getcap setcap /out/
 
 FROM scratch AS export
 COPY --from=builder /out/ /

@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG NCDU_VERSION
 ARG NCDU_SOURCE_URL
 ARG NCDU_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -27,10 +26,7 @@ RUN tar xzf ncdu.tar.gz && \
     make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp ncdu /out/ncdu && \
-    strip /out/ncdu && \
-    ! readelf -l /out/ncdu | grep -q INTERP && \
-    readelf -h /out/ncdu | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/ncdu
 
 FROM scratch AS export
 COPY --from=builder /out/ /

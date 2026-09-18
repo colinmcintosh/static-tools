@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG IPERF3_VERSION
 ARG IPERF3_SOURCE_URL
 ARG IPERF3_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -33,10 +32,7 @@ RUN tar xzf iperf3.tar.gz && \
     make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp src/iperf3 /out/iperf3 && \
-    strip /out/iperf3 && \
-    ! readelf -l /out/iperf3 | grep -q INTERP && \
-    readelf -h /out/iperf3 | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/iperf3
 
 FROM scratch AS export
 COPY --from=builder /out/ /

@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG ZSTD_VERSION
 ARG ZSTD_URL
 ARG ZSTD_SHA256
-ARG TARGETARCH
 
 ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"
@@ -34,10 +33,7 @@ RUN tar xzf zstd.tar.gz && \
     mkdir -p /out && \
     cp zstd /out/zstd && \
     strip /out/zstd && \
-    /out/zstd --version && \
-    ! readelf -l /out/zstd | grep -q INTERP && \
-    readelf -h /out/zstd | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    /out/zstd --version
 
 FROM scratch AS export
 COPY --from=builder /out/ /

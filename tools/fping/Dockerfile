@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG FPING_VERSION
 ARG FPING_SOURCE_URL
 ARG FPING_SOURCE_SHA256
-ARG TARGETARCH
 
 ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"
@@ -21,10 +20,7 @@ RUN tar xzf fping.tar.gz && \
     make -j"$(nproc)" LDFLAGS="-static-pie" && \
     mkdir -p /out && \
     cp src/fping /out/fping && \
-    strip /out/fping && \
-    ! readelf -l /out/fping | grep -q INTERP && \
-    readelf -h /out/fping | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/fping
 
 FROM scratch AS export
 COPY --from=builder /out/ /

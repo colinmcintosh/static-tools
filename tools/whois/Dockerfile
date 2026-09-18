@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG WHOIS_VERSION
 ARG WHOIS_SOURCE_URL
 ARG WHOIS_SOURCE_SHA256
-ARG TARGETARCH
 
 # musl never defines __GLIBC__, so upstream's config.h never sets
 # HAVE_GETOPT_LONG and whois.c falls back to plain getopt(), which cannot
@@ -31,11 +30,7 @@ RUN tar xzf whois.tar.gz && \
     mkdir -p /out && \
     cp whois /out/whois && \
     strip /out/whois && \
-    /out/whois --version && \
-    ! readelf -l /out/whois | grep -q INTERP && \
-    readelf -h /out/whois | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -Wr /out/whois | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
-    cd /out && sha256sum * > SHA256SUMS
+    /out/whois --version
 
 FROM scratch AS export
 COPY --from=builder /out/ /

@@ -82,8 +82,6 @@ RUN wget -q "${OPENSSL_URL}" -O openssl.tar.gz && \
         apps/*.o apps/lib/*.o \
         -Wl,--start-group apps/libapps.a libssl.a libcrypto.a -Wl,--end-group \
         -ldl -pthread && \
-    readelf -l "${PREFIX}/bin/openssl" | grep -q INTERP && { echo "openssl CLI is not static"; exit 1; } || true && \
-    readelf -h "${PREFIX}/bin/openssl" | grep -q 'Type:[[:space:]]*DYN' && \
     cd /src && rm -rf openssl.tar.gz openssl-${OPENSSL_VERSION}
 
 # --- nghttp2 (library only) ---

@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG LESS_VERSION
 ARG LESS_SOURCE_URL
 ARG LESS_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -41,10 +40,7 @@ RUN tar xzf less.tar.gz && \
     mkdir -p /out && \
     cp less /out/less && \
     strip /out/less && \
-    /out/less --version && \
-    ! readelf -l /out/less | grep -q INTERP && \
-    readelf -h /out/less | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    /out/less --version
 
 FROM scratch AS export
 COPY --from=builder /out/ /

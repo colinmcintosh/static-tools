@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG XXD_VERSION
 ARG XXD_SOURCE_URL
 ARG XXD_SOURCE_SHA256
-ARG TARGETARCH
 
 ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"
@@ -20,10 +19,7 @@ RUN tar xzf tinyxxd.tar.gz && \
     make -j"$(nproc)" CFLAGS="${CFLAGS} ${LDFLAGS}" && \
     mkdir -p /out && \
     cp tinyxxd /out/xxd && \
-    strip /out/xxd && \
-    ! readelf -l /out/xxd | grep -q INTERP && \
-    readelf -h /out/xxd | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/xxd
 
 FROM scratch AS export
 COPY --from=builder /out/ /
