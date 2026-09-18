@@ -18,22 +18,6 @@ ENV PATH="${PREFIX}/bin:${PATH}" \
 
 WORKDIR /src
 
-# --- perl (OpenSSL Configure) ---
-ARG PERL_VERSION
-ARG PERL_URL
-ARG PERL_SHA256
-RUN wget -q "${PERL_URL}" -O perl.tar.gz && \
-    echo "${PERL_SHA256}  perl.tar.gz" | sha256sum -c - && \
-    tar xzf perl.tar.gz && \
-    cd perl-${PERL_VERSION} && \
-    ./Configure -des \
-        -Dprefix="${PREFIX}" \
-        -Dman1dir=none \
-        -Dman3dir=none && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd /src && rm -rf perl.tar.gz perl-${PERL_VERSION}
-
 # --- pkg-config ---
 ARG PKG_CONFIG_VERSION
 ARG PKG_CONFIG_URL
@@ -173,38 +157,6 @@ RUN wget -q "${LIBUV_URL}" -O libuv.tar.gz && \
     make install && \
     cd /src && rm -rf libuv.tar.gz libuv-v${LIBUV_VERSION}
 
-# --- userspace-rcu ---
-ARG URCU_VERSION
-ARG URCU_URL
-ARG URCU_SHA256
-RUN wget -q "${URCU_URL}" -O urcu.tar.bz2 && \
-    echo "${URCU_SHA256}  urcu.tar.bz2" | sha256sum -c - && \
-    tar xjf urcu.tar.bz2 && \
-    cd userspace-rcu-${URCU_VERSION} && \
-    ./configure \
-        --prefix="${PREFIX}" \
-        --disable-shared \
-        --enable-static && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd /src && rm -rf urcu.tar.bz2 userspace-rcu-${URCU_VERSION}
-
-# --- jemalloc ---
-ARG JEMALLOC_VERSION
-ARG JEMALLOC_URL
-ARG JEMALLOC_SHA256
-RUN wget -q "${JEMALLOC_URL}" -O jemalloc.tar.bz2 && \
-    echo "${JEMALLOC_SHA256}  jemalloc.tar.bz2" | sha256sum -c - && \
-    tar xjf jemalloc.tar.bz2 && \
-    cd jemalloc-${JEMALLOC_VERSION} && \
-    ./configure \
-        --prefix="${PREFIX}" \
-        --disable-shared \
-        --enable-static && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd /src && rm -rf jemalloc.tar.bz2 jemalloc-${JEMALLOC_VERSION}
-
 # --- libpcap ---
 ARG LIBPCAP_VERSION
 ARG LIBPCAP_URL
@@ -264,7 +216,7 @@ RUN wget -q "${LZ4_URL}" -O lz4.tar.gz && \
 
 # Export only what tool builds need: static libs, headers, pkg-config
 # files, and the two binaries tools actually invoke (openssl CLI and
-# pkg-config). Drop perl, terminfo, man pages, and the rest of bin/.
+# pkg-config). Drop terminfo, man pages, and the rest of bin/.
 RUN export_root=/export && \
     mkdir -p \
         "${export_root}/bin" \
@@ -273,7 +225,6 @@ RUN export_root=/export && \
     cp "${PREFIX}/bin/openssl" "${PREFIX}/bin/pkg-config" "${export_root}/bin/" && \
     cp "${PREFIX}/lib/"*.a "${export_root}/lib/" && \
     cp "${PREFIX}/lib/pkgconfig/"*.pc "${export_root}/lib/pkgconfig/" && \
-    rm -f "${export_root}/lib/pkgconfig/perl.pc" && \
     cp -a "${PREFIX}/include/." "${export_root}/include/" && \
     test -f "${export_root}/lib/libssl.a" && \
     test -f "${export_root}/lib/libcrypto.a" && \
@@ -282,16 +233,13 @@ RUN export_root=/export && \
     test -f "${export_root}/lib/libncursesw.a" && \
     test -f "${export_root}/lib/libcap.a" && \
     test -f "${export_root}/lib/libuv.a" && \
-    test -f "${export_root}/lib/liburcu.a" && \
-    test -f "${export_root}/lib/libjemalloc.a" && \
     test -f "${export_root}/lib/libpcap.a" && \
     test -f "${export_root}/lib/libxxhash.a" && \
     test -f "${export_root}/lib/libzstd.a" && \
     test -f "${export_root}/lib/liblz4.a" && \
     test -x "${export_root}/bin/openssl" && \
     test -x "${export_root}/bin/pkg-config" && \
-    test ! -d "${export_root}/share/terminfo" && \
-    ! grep -l '^#!.*perl' "${export_root}/bin"/*
+    test ! -d "${export_root}/share/terminfo"
 
 FROM scratch AS export
 COPY --from=builder /export /
