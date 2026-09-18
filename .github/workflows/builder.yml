@@ -135,9 +135,11 @@ jobs:
             cat "${create_log}" >&2
             exit 1
           fi
-          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
-          echo "short_sha=${short_sha}" >> "${GITHUB_OUTPUT}"
-          echo "date_tag=${date_tag}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "digest=${digest}"
+            echo "short_sha=${short_sha}"
+            echo "date_tag=${date_tag}"
+          } >> "${GITHUB_OUTPUT}"
           echo "Index digest: ${digest}"
           echo "Tags: sha-${short_sha} ${date_tag}"
 

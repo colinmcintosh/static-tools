@@ -19,12 +19,12 @@ for name in "${expected[@]}"; do
     arch=${name##*-}
     bundle=${name%-*}
     case "${bundle}" in
-        mtr-packet) bundle=mtr ;;
-        magic.mgc) bundle=file ;;
-        nmap-services) bundle=nmap ;;
-        ip|ss) bundle=iproute2 ;;
-        getcap|setcap) bundle=libcap ;;
-        mpstat|iostat|pidstat|sar|sadc) bundle=sysstat ;;
+        mtr-packet) bundle="mtr" ;;
+        magic.mgc) bundle="file" ;;
+        nmap-services) bundle="nmap" ;;
+        ip|ss) bundle="iproute2" ;;
+        getcap|setcap) bundle="libcap" ;;
+        mpstat|iostat|pidstat|sar|sadc) bundle="sysstat" ;;
     esac
     mkdir -p "${TMP}/artifacts/${bundle}-${arch}"
     echo "${name}" > "${TMP}/artifacts/${bundle}-${arch}/${name}"
