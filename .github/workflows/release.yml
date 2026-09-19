@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      attestations: read
     outputs:
       tag: ${{ steps.verify.outputs.tag }}
     steps:
@@ -76,6 +77,11 @@ jobs:
 
       - name: Verify signed upstream tarball pins
         run: scripts/verify-upstream-signatures.sh
+
+      - name: Verify the builder image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/verify-builder-image.sh
 
       # Published releases are immutable, so the publish step would fail
       # anyway. Stop before building, so a rerun cannot sign a second set of

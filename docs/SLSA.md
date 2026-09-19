@@ -12,11 +12,15 @@ bit-for-bit reproducible (Build L4-class).
   `ubuntu-24.04-arm`), inside a digest-pinned builder image
   (`ghcr.io/colinmcintosh/static-tools/builder`). That image is Alpine
   plus the compiler toolchain; it is published and attested by
-  [`.github/workflows/builder.yml`](../.github/workflows/builder.yml).
-  Rebuild it from that workflow, then copy the new index digest into
-  [`deps/versions.mk`](../deps/versions.mk) and refresh
-  [`builder/apk-lock.txt`](../builder/apk-lock.txt). Tool and deps
-  Dockerfiles must not `apk add`.
+  [`.github/workflows/builder.yml`](../.github/workflows/builder.yml),
+  which publishes only from `main`. Rebuild it from that workflow, then
+  copy the new index digest into [`deps/versions.mk`](../deps/versions.mk)
+  and refresh [`builder/apk-lock.txt`](../builder/apk-lock.txt). CI and
+  `release.yml` run
+  [`scripts/verify-builder-image.sh`](../scripts/verify-builder-image.sh)
+  before any build: the pinned digest must carry an attestation from
+  `builder.yml` on `main`, and CI also checks the lock against the image.
+  Tool and deps Dockerfiles must not `apk add`.
 - Upstream tarballs are fetched over HTTPS and verified with SHA256 pins in
   each tool's `versions.mk` (shared libraries live in `deps/versions.mk`).
   Pins that publish a detached signature are also audited on every CI run
