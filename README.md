@@ -110,7 +110,10 @@ gh attestation verify curl-amd64 \
 `--cert-identity` pins both the workflow that built and signed the binary and
 the tag it ran from. `--signer-workflow` would match that workflow's path on
 any branch. The same command verifies `SHA256SUMS.txt`, which is also a
-provenance subject. The included wrapper runs these checks (it also needs `gh`):
+provenance subject. The included wrapper runs these checks (it also needs `gh`).
+It also checks that the commit the attestations name is on `main`. The release
+workflow checks that too, but it runs from the tagged commit, so only a
+verifier can catch a tag pushed on another branch:
 
 ```bash
 ./scripts/verify.sh "$TAG" curl-amd64 SHA256SUMS.txt
@@ -145,7 +148,7 @@ The parentheses `( ... )` start a subshell so `set -eu` cannot leak into your in
 
 #### With GitHub CLI
 
-Requires the [GitHub CLI](https://cli.github.com/). Checks `SHA256SUMS.txt` and verifies SLSA provenance for the binaries and the sums file (signer workflow, release tag, GitHub-hosted runners).
+Requires the [GitHub CLI](https://cli.github.com/). Checks `SHA256SUMS.txt`, verifies SLSA provenance for the binaries and the sums file (signer workflow, release tag, GitHub-hosted runners), and checks that the release commit is on `main`.
 
 ```bash
 (
@@ -159,11 +162,16 @@ Requires the [GitHub CLI](https://cli.github.com/). Checks `SHA256SUMS.txt` and 
   t=$(gh release view -R colinmcintosh/static-tools --json tagName -q .tagName)
   gh release download -R colinmcintosh/static-tools --clobber -p "*-$a" -p SHA256SUMS.txt
   sha256sum -c --ignore-missing SHA256SUMS.txt
-  gh attestation verify SHA256SUMS.txt \
+  c=$(gh attestation verify SHA256SUMS.txt \
     --repo colinmcintosh/static-tools \
     --cert-identity "https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/$t" \
     --source-ref "refs/tags/$t" \
-    --deny-self-hosted-runners
+    --deny-self-hosted-runners \
+    --format json --jq '.[0].verificationResult.signature.certificate.sourceRepositoryDigest')
+  case $(gh api "repos/colinmcintosh/static-tools/compare/$c...main" --jq .status) in
+    identical|ahead) ;;
+    *) echo "release commit $c is not on main" >&2; exit 1 ;;
+  esac
   printf '%s\0' *-"$a" | xargs -0 -P"$(nproc)" -I{} bash -c '
     f=$1 t=$2
     if gh attestation verify "$f" \

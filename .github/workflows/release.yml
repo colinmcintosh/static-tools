@@ -172,8 +172,10 @@ jobs:
 
             The same command verifies `SHA256SUMS.txt`. Add
             `--predicate-type https://spdx.dev/Document/v2.3` to verify a
-            binary's SBOM. The [README](https://github.com/${{ github.repository }}#verify-provenance-recommended)
-            covers checksums, SBOMs, and `scripts/verify.sh`.
+            binary's SBOM. `scripts/verify.sh` runs these checks and also
+            requires the release commit to be on `main`. The
+            [README](https://github.com/${{ github.repository }}#verify-provenance-recommended)
+            covers checksums, SBOMs, and the wrapper.
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3

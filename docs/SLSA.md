@@ -89,6 +89,8 @@ What each flag pins:
 - `--source-ref refs/tags/<tag>` additionally pins the ref the source was
   built from.
 - `--deny-self-hosted-runners` requires a GitHub-hosted runner.
+- `scripts/verify.sh` also reads the source commit from the verified
+  certificate and requires it to be on `main` (see [Source](#source)).
 
 `SHA256SUMS.txt` is also a provenance subject. Each binary also has an SPDX
 2.3 SBOM attestation (`--predicate-type https://spdx.dev/Document/v2.3`).
@@ -100,14 +102,19 @@ Source integrity on `main` is enforced with a GitHub branch ruleset: required
 commit signatures, no force-push, no branch deletion. That is not Source L3
 and is not gittuf.
 
-Tags matching `v*` cannot be moved or deleted once created. Because tag
-*creation* is not restricted, `release.yml` additionally requires that the
-tagged commit is reachable from `origin/main` and carries an acceptable
-signature, so a release cannot be cut from an unreviewed branch. Both workflows
-share one implementation in
+Tags matching `v*` cannot be moved or deleted once created, but tag
+*creation* is not restricted. `release.yml` refuses to build a tag whose
+commit is not reachable from `origin/main` or is not signed by an allowed
+key. CI and the release share one implementation in
 [`scripts/verify-commit-signatures.sh`](../scripts/verify-commit-signatures.sh).
 Allowed fingerprints are listed in
 [`scripts/allowed-signing-keys.txt`](../scripts/allowed-signing-keys.txt).
+
+Those release checks run from the tagged commit's own `release.yml`, so they
+catch mistakes but cannot stop someone who can push a branch and a tag. The
+check that holds is on the verifier's side: `scripts/verify.sh` requires the
+commit the attestations name to be on `main`, so a release built from any
+other branch fails verification.
 
 Known limitations of individual tools are listed in the
 [README Known Issues](../README.md#known-issues) section.
