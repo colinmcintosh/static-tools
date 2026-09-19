@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG NETHOGS_VERSION
 ARG NETHOGS_SOURCE_URL
 ARG NETHOGS_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -42,10 +41,7 @@ RUN tar xzf nethogs.tar.gz && \
         nethogs && \
     mkdir -p /out && \
     cp src/nethogs /out/nethogs && \
-    strip /out/nethogs && \
-    ! readelf -l /out/nethogs | grep -q INTERP && \
-    readelf -h /out/nethogs | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/nethogs
 
 FROM scratch AS export
 COPY --from=builder /out/ /

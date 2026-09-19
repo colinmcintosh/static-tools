@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG SOCAT_VERSION
 ARG SOCAT_SOURCE_URL
 ARG SOCAT_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -32,10 +31,7 @@ RUN tar xjf socat.tar.bz2 && \
     make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp socat /out/socat && \
-    strip /out/socat && \
-    ! readelf -l /out/socat | grep -q INTERP && \
-    readelf -h /out/socat | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/socat
 
 FROM scratch AS export
 COPY --from=builder /out/ /

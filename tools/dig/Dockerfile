@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG BIND9_VERSION
 ARG BIND9_SOURCE_URL
 ARG BIND9_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -43,11 +42,7 @@ RUN tar xf bind.tar.xz && \
     cd ../../bin/dig && make -j"$(nproc)" && \
     mkdir -p /out && \
     cp dig /out/dig && \
-    strip /out/dig && \
-    ! readelf -l /out/dig | grep -q INTERP && \
-    readelf -h /out/dig | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -Wr /out/dig | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/dig
 
 FROM scratch AS export
 COPY --from=builder /out/ /

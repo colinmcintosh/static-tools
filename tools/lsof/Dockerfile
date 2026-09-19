@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG LSOF_VERSION
 ARG LSOF_SOURCE_URL
 ARG LSOF_SOURCE_SHA256
-ARG TARGETARCH
 
 # No shared deps prefix: lsof only needs libc and Linux /proc parsing.
 ENV CFLAGS="-Os -fPIE -ftls-model=local-exec -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
@@ -39,11 +38,7 @@ RUN tar xzf lsof.tar.gz && \
     mkdir -p /out && \
     cp lsof /out/lsof && \
     strip /out/lsof && \
-    /out/lsof -v && \
-    ! readelf -l /out/lsof | grep -q INTERP && \
-    readelf -h /out/lsof | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -Wr /out/lsof | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
-    cd /out && sha256sum * > SHA256SUMS
+    /out/lsof -v
 
 FROM scratch AS export
 COPY --from=builder /out/ /

@@ -26,26 +26,23 @@ BUILDX ?= $(DOCKER) buildx
 # Output directory
 OUT_DIR := $(CURDIR)/dist
 
-# All tools
-TOOLS := mtr drill dig curl wget iperf3 tcpdump ncat openssl rsync socat jq fping strace ncdu file xxd htop iproute2 lsof nmap zstd nethogs whois less sysstat tree libcap
+# Every tools/<name>/ directory is a tool.
+TOOLS := $(sort $(notdir $(patsubst %/,%,$(wildcard tools/*/))))
 
-# Tools that ship no binary matching their own directory name: every binary
-# they produce has to come from EXTRA_ARTIFACTS instead of the generic
-# per-tool mapping below (which assumes dir name == a produced binary, true
-# for every other tool, including the single-extra cases like mtr/file).
-MULTI_NAME_TOOLS := iproute2 sysstat libcap
+# The files each tool ships (FILES_<tool>, DATA_FILES, tool_files).
+include tools/files.mk
 
-# Release artifact names (2 architectures × 37 binaries). Canonical list:
-# release/attest workflows check the built set against it (make print-artifacts).
-EXTRA_ARTIFACTS := mtr-packet magic.mgc nmap-services ip ss getcap setcap mpstat iostat pidstat sar sadc
-ARTIFACTS := $(foreach arch,amd64 arm64,$(foreach tool,$(filter-out $(MULTI_NAME_TOOLS),$(TOOLS)),$(tool)-$(arch)) $(foreach bin,$(EXTRA_ARTIFACTS),$(bin)-$(arch)))
+# Release artifact names: every shipped file for both architectures. The
+# release checks the built set against this list (make print-artifacts).
+ARTIFACTS := $(foreach arch,amd64 arm64,$(foreach tool,$(TOOLS),$(addsuffix -$(arch),$(call tool_files,$(tool)))))
 
 # Versioning Format: YYYY.MM.MINOR
-# YYYY = year, MM = zero-padded month, MINOR = release number within month
-YEAR := $(shell date +%Y)
-MONTH := $(shell date +%m)
+# YYYY = year, MM = zero-padded month, MINOR = release number within month.
+# Recursive (=) so `date` and `git tag` run only for version/tag-release.
+YEAR = $(shell date +%Y)
+MONTH = $(shell date +%m)
 # Auto-increment MINOR based on last tag for this year.month
-LAST_MINOR := $(shell git tag -l "v$(YEAR).$(MONTH).*" 2>/dev/null | sed 's/v[0-9]*\.[0-9]*\.\([0-9]*\).*/\1/' | sort -n | tail -1)
+LAST_MINOR = $(shell git tag -l "v$(YEAR).$(MONTH).*" 2>/dev/null | sed 's/v[0-9]*\.[0-9]*\.\([0-9]*\).*/\1/' | sort -n | tail -1)
 MINOR ?= $(if $(LAST_MINOR),$(shell echo $$(($(LAST_MINOR) + 1))),0)
 VERSION ?= v$(YEAR).$(MONTH).$(MINOR)
 
@@ -201,6 +198,15 @@ sbom:
 .PHONY: print-artifacts
 print-artifacts:
 	@echo $(ARTIFACTS)
+
+# One "TOOL FILE" line per shipped file, and the files that are not ELF
+# binaries. scripts/ read tools/files.mk through these.
+.PHONY: print-tool-files print-data-files
+print-tool-files:
+	@$(foreach tool,$(TOOLS),$(foreach file,$(call tool_files,$(tool)),echo "$(tool) $(file)";))
+
+print-data-files:
+	@echo $(DATA_FILES)
 
 # List available tools
 .PHONY: list

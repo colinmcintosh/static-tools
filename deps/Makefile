@@ -17,9 +17,6 @@ DEPS_OUT_DIR := $(OUT_DIR)/deps
 PLATFORM_amd64 := linux/amd64
 PLATFORM_arm64 := linux/arm64
 
-ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
-ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
-
 .PHONY: build
 build: $(DEPS_OUT_DIR)/$(ARCH)/lib/libssl.a
 
@@ -30,9 +27,6 @@ $(DEPS_OUT_DIR)/$(ARCH)/lib/libssl.a: Dockerfile versions.mk
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
 		--build-arg PREFIX=$(PREFIX) \
-		--build-arg PERL_VERSION=$(PERL_VERSION) \
-		--build-arg PERL_URL=$(PERL_URL) \
-		--build-arg PERL_SHA256=$(PERL_SHA256) \
 		--build-arg PKG_CONFIG_VERSION=$(PKG_CONFIG_VERSION) \
 		--build-arg PKG_CONFIG_URL=$(PKG_CONFIG_URL) \
 		--build-arg PKG_CONFIG_SHA256=$(PKG_CONFIG_SHA256) \
@@ -54,12 +48,6 @@ $(DEPS_OUT_DIR)/$(ARCH)/lib/libssl.a: Dockerfile versions.mk
 		--build-arg LIBUV_VERSION=$(LIBUV_VERSION) \
 		--build-arg LIBUV_URL=$(LIBUV_URL) \
 		--build-arg LIBUV_SHA256=$(LIBUV_SHA256) \
-		--build-arg URCU_VERSION=$(URCU_VERSION) \
-		--build-arg URCU_URL=$(URCU_URL) \
-		--build-arg URCU_SHA256=$(URCU_SHA256) \
-		--build-arg JEMALLOC_VERSION=$(JEMALLOC_VERSION) \
-		--build-arg JEMALLOC_URL=$(JEMALLOC_URL) \
-		--build-arg JEMALLOC_SHA256=$(JEMALLOC_SHA256) \
 		--build-arg LIBPCAP_VERSION=$(LIBPCAP_VERSION) \
 		--build-arg LIBPCAP_URL=$(LIBPCAP_URL) \
 		--build-arg LIBPCAP_SHA256=$(LIBPCAP_SHA256) \
@@ -85,10 +73,3 @@ build-all:
 .PHONY: clean
 clean:
 	rm -rf $(DEPS_OUT_DIR)
-
-.PHONY: info
-info:
-	@echo "Static prefix: $(PREFIX)"
-	@echo "OpenSSL $(OPENSSL_VERSION)"
-	@echo "zlib $(ZLIB_VERSION)"
-	@echo "nghttp2 $(NGHTTP2_VERSION)"

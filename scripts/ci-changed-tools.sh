@@ -80,6 +80,12 @@ while IFS= read -r file; do
       tool=${tool%%/*}
       if [[ -d "tools/${tool}" ]]; then
         selected+=("$tool")
+      else
+        # Not a tool directory (tools/common.mk, tools/files.mk, a removed
+        # tool): it can affect every tool's build.
+        echo "Shared ${file} changed; building all tools" >&2
+        json_array "${all_tools[@]}"
+        exit 0
       fi
       ;;
   esac

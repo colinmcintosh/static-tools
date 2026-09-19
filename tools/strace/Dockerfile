@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG STRACE_VERSION
 ARG STRACE_SOURCE_URL
 ARG STRACE_SOURCE_SHA256
-ARG TARGETARCH
 
 ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"
@@ -23,10 +22,7 @@ RUN tar xf strace.tar.xz && \
     make -j"$(nproc)" LDFLAGS="-static-pie" && \
     mkdir -p /out && \
     cp src/strace /out/strace && \
-    strip /out/strace && \
-    ! readelf -l /out/strace | grep -q INTERP && \
-    readelf -h /out/strace | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/strace
 
 FROM scratch AS export
 COPY --from=builder /out/ /

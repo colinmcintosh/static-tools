@@ -1,57 +1,16 @@
-# rsync build targets
-
-SHELL := /bin/bash
-.SHELLFLAGS := -euo pipefail -c
+# Build settings and tests for rsync. The build rules are in ../common.mk.
 
 include versions.mk
 
-ARCH ?= amd64
-ARCHS := amd64 arm64
+TOOL := rsync
+DEPS_LIBS := libzstd.a
+BUILD_ARGS := \
+	--build-arg RSYNC_VERSION=$(RSYNC_VERSION) \
+	--build-arg RSYNC_SOURCE_URL=$(RSYNC_SOURCE_URL) \
+	--build-arg RSYNC_SOURCE_SHA256=$(RSYNC_SOURCE_SHA256)
 
-DOCKER ?= docker
-BUILDX ?= $(DOCKER) buildx
+include ../common.mk
 
-OUT_DIR ?= $(CURDIR)/../../dist
-TOOL_OUT_DIR := $(OUT_DIR)/rsync
-DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
-
-PLATFORM_amd64 := linux/amd64
-PLATFORM_arm64 := linux/arm64
-
-ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
-ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
-
-.PHONY: deps
-deps:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-.PHONY: build
-build: $(TOOL_OUT_DIR)/$(ARCH)/rsync
-
-$(TOOL_OUT_DIR)/$(ARCH)/rsync: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libzstd.a
-	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
-	$(BUILDX) build \
-		--platform $(PLATFORM_$(ARCH)) \
-		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
-		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
-		--build-arg RSYNC_VERSION=$(RSYNC_VERSION) \
-		--build-arg RSYNC_SOURCE_URL=$(RSYNC_SOURCE_URL) \
-		--build-arg RSYNC_SOURCE_SHA256=$(RSYNC_SOURCE_SHA256) \
-		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
-		--target export \
-		.
-	@echo "Built rsync $(RSYNC_VERSION) for $(ARCH):"
-	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
-
-$(DEPS_PREFIX)/lib/libzstd.a:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-.PHONY: build-all
-build-all:
-	$(foreach arch,$(ARCHS),$(MAKE) build ARCH=$(arch);)
-
-.PHONY: test
 test: build
 	@echo "==> Testing rsync binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/rsync || \
@@ -60,7 +19,7 @@ test: build
 	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/rsync
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/rsync:/rsync:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /rsync --version 2>&1); \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /rsync --version 2>&1); \
 		echo "$$OUTPUT" | grep -qi "rsync" || \
 		(echo "ERROR: rsync --version failed: $$OUTPUT" && exit 1); \
 		echo "$$OUTPUT" | grep -qi "xxhash" || \
@@ -74,30 +33,14 @@ test: build
 	@echo "✓ rsync --version reports xxhash/zstd/lz4/openssl"
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/rsync:/rsync:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /rsync --help 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /rsync --help 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: rsync --help failed: $$OUTPUT" && exit 1)
 	@echo "✓ rsync --help works"
 	@$(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/rsync:/rsync:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) \
 		/bin/sh -c 'printf hello > /tmp/src && mkdir /tmp/dst && /rsync -a /tmp/src /tmp/dst/ && grep -q hello /tmp/dst/src' || \
 		(echo "ERROR: rsync file copy failed" && exit 1)
 	@echo "✓ rsync file copy works"
 	@echo "==> All rsync tests passed"
-
-.PHONY: verify-static
-verify-static: build
-	@echo "==> Checking rsync binary linking for $(ARCH)"
-	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/rsync
-
-.PHONY: clean
-clean:
-	rm -rf $(TOOL_OUT_DIR)
-
-.PHONY: info
-info:
-	@echo "Tool: rsync (file-copying tool)"
-	@echo "Source: rsync $(RSYNC_VERSION)"
-	@echo "URL: $(RSYNC_SOURCE_URL)"
-	@echo "SHA256: $(RSYNC_SOURCE_SHA256)"

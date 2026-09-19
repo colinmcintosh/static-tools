@@ -15,6 +15,8 @@ git_init_fixture() {
     mkdir -p tools/curl tools/wget deps builder scripts .github/workflows docs
     printf 'tool\n' > tools/curl/Dockerfile
     printf 'tool\n' > tools/wget/Dockerfile
+    printf 'rules\n' > tools/common.mk
+    printf 'files\n' > tools/files.mk
     printf 'deps\n' > deps/Dockerfile
     printf 'builder\n' > builder/Dockerfile
     printf 'make\n' > Makefile
@@ -80,7 +82,9 @@ for spec in \
     "Makefile:Makefile" \
     ".hadolint.yaml:.hadolint.yaml" \
     "scripts/foo.sh:scripts" \
-    ".github/workflows/ci.yml:workflows"
+    ".github/workflows/ci.yml:workflows" \
+    "tools/common.mk:common.mk" \
+    "tools/files.mk:files.mk"
 do
     file=${spec%%:*}
     label=${spec##*:}

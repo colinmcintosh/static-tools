@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG JQ_VERSION
 ARG JQ_SOURCE_URL
 ARG JQ_SOURCE_SHA256
-ARG TARGETARCH
 
 ENV CFLAGS="-Os -fPIE -ftls-model=local-exec -fstack-protector-strong -D_FORTIFY_SOURCE=2" \
     LDFLAGS="-static-pie"
@@ -28,13 +27,9 @@ RUN tar xzf jq.tar.gz && \
     ./libtool --tag=CC --mode=link gcc -static-pie -s -o jq \
         src/main.o libjq.la vendor/oniguruma/src/libonig.la -lm && \
     mkdir -p /out && \
-    cp jq /out/jq 2>/dev/null || cp .libs/jq /out/jq && \
+    { cp jq /out/jq 2>/dev/null || cp .libs/jq /out/jq; } && \
     strip /out/jq && \
-    /out/jq --version && \
-    ! readelf -l /out/jq | grep -q INTERP && \
-    readelf -h /out/jq | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -Wr /out/jq | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
-    cd /out && sha256sum * > SHA256SUMS
+    /out/jq --version
 
 FROM scratch AS export
 COPY --from=builder /out/ /

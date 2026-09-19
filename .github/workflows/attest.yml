@@ -26,6 +26,25 @@ env:
   BUILDKIT_IMAGE: moby/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
 
 jobs:
+  # Every tools/<name>/ directory is a tool, as in CI.
+  tools:
+    name: List tools
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      tools: ${{ steps.list.outputs.tools }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: List tools
+        id: list
+        run: echo "tools=$(scripts/ci-changed-tools.sh --all)" >> "${GITHUB_OUTPUT}"
+
   # Shared static prefix, built once per architecture in this run.
   # Do not restore a cross-run cache here; release provenance stays hermetic.
   deps:
@@ -69,14 +88,14 @@ jobs:
 
   build:
     name: Build ${{ matrix.tool }}-${{ matrix.arch }}
-    needs: [deps]
+    needs: [tools, deps]
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        tool: [mtr, drill, dig, curl, wget, iperf3, tcpdump, ncat, openssl, rsync, socat, jq, fping, strace, ncdu, file, xxd, htop, iproute2, lsof, nmap, zstd, nethogs, whois, less, sysstat, tree, libcap]
+        tool: ${{ fromJSON(needs.tools.outputs.tools) }}
         arch: [amd64, arm64]
         include:
           - arch: amd64

@@ -36,26 +36,11 @@ export STUB_ELF_LOG="${TMP}/elf.log"
 out() {
     local dir="${TMP}/out-$1"
     mkdir -p "${dir}"
-    while IFS= read -r name; do
+    while read -r _ name; do
         echo "${name}" > "${dir}/${name}"
-    done < <("${SCRIPT}" --list "$1")
+    done < <(make -s --no-print-directory -C "${ROOT}" print-tool-files | awk -v tool="$1" '$1 == tool')
     echo "${dir}"
 }
-
-# The staging list must agree with the release artifact list, so drift fails
-# in CI instead of on the first tag.
-read -r -a tools < <(make -s --no-print-directory -C "${ROOT}" list | sed -n 's/^Available tools: //p')
-((${#tools[@]} > 0)) || fail "no tools from make list"
-if ! diff -u \
-    <(make -s --no-print-directory -C "${ROOT}" print-artifacts | tr ' ' '\n' | sort) \
-    <(for tool in "${tools[@]}"; do
-          for arch in amd64 arm64; do
-              "${SCRIPT}" --list "${tool}" | sed "s/\$/-${arch}/"
-          done
-      done | sort) >&2; then
-    fail "--list disagrees with make print-artifacts (- Makefile, + staging)"
-fi
-assert_ok "staging list matches make print-artifacts for ${#tools[@]} tools"
 
 src=$(out tree)
 echo planted > "${src}/curl-amd64"
@@ -104,5 +89,10 @@ if STUB_ELF_FAIL=1 "${SCRIPT}" curl amd64 "${src}" "${TMP}/stage-notelf" >/dev/n
     fail "a failed static-PIE check should fail"
 fi
 assert_ok "failed static-PIE check fails"
+
+if "${SCRIPT}" nosuchtool amd64 "${src}" "${TMP}/stage-unknown" >/dev/null 2>&1; then
+    fail "a tool with no entry in tools/files.mk should fail"
+fi
+assert_ok "unknown tool fails"
 
 echo "stage-release-files tests passed"

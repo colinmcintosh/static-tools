@@ -95,40 +95,26 @@ limit the process to raw sockets.
 
 ### Verify Provenance (Recommended)
 
-Verify the SLSA provenance before using binaries. Requires the [GitHub CLI](https://cli.github.com/):
+Verify the SLSA provenance before using binaries. This needs the
+[GitHub CLI](https://cli.github.com/). Set `TAG` to the release you downloaded:
 
 ```bash
+TAG=v2026.09.8
 gh attestation verify curl-amd64 \
   --repo colinmcintosh/static-tools \
-  --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
-  --source-ref refs/tags/v2026.09.3 \
+  --cert-identity "https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/$TAG" \
+  --source-ref "refs/tags/$TAG" \
   --deny-self-hosted-runners
 ```
 
-The same flags verify `SHA256SUMS.txt`, which is also a provenance subject:
+`--cert-identity` pins both the workflow that built and signed the binary and
+the tag it ran from. `--signer-workflow` would match that workflow's path on
+any branch. The same command verifies `SHA256SUMS.txt`, which is also a
+provenance subject. The included wrapper runs these checks (it also needs `gh`):
 
 ```bash
-gh attestation verify SHA256SUMS.txt \
-  --repo colinmcintosh/static-tools \
-  --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
-  --source-ref refs/tags/v2026.09.3 \
-  --deny-self-hosted-runners
+./scripts/verify.sh "$TAG" curl-amd64 SHA256SUMS.txt
 ```
-
-Or use the included wrapper (also requires `gh`; it does not bootstrap a verifier):
-
-```bash
-./scripts/verify.sh v2026.09.3 curl-amd64 SHA256SUMS.txt
-```
-
-Substitute the tag of the release you downloaded. `SHA256SUMS.txt` and SBOM attestations exist only for releases after
-`v2026.09.6`; against older tags the commands that use them fail with "no
-attestations found". Use a newer tag for those examples.
-
-Pinning the tag matters:
-`--cert-identity` binds both the signing workflow and the ref it ran from,
-while `--signer-workflow` matches only the workflow path and would accept an
-attestation produced from any branch.
 
 Then check checksums. `SHA256SUMS.txt` lists every artifact for both
 architectures, so skip the ones you did not download:
@@ -139,27 +125,17 @@ sha256sum -c --ignore-missing SHA256SUMS.txt
 
 Each binary also has a signed SPDX 2.3 SBOM attestation that lists the pinned
 tool tarball and the prefix libraries linked into it (OpenSSL, zlib, and so
-on). `gh attestation verify` defaults to SLSA provenance; pass
-`--predicate-type` to read the SBOM:
-
-```bash
-gh attestation verify curl-amd64 \
-  --repo colinmcintosh/static-tools \
-  --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
-  --source-ref refs/tags/v2026.09.3 \
-  --deny-self-hosted-runners \
-  --predicate-type https://spdx.dev/Document/v2.3 \
-  --format json
-```
-
-`--format json` prints the verified statement, including the SPDX packages.
-To save the signed bundle instead:
+on). Add `--predicate-type https://spdx.dev/Document/v2.3 --format json` to the
+`gh attestation verify` command above to verify the SBOM and print it. To save
+the signed bundle instead:
 
 ```bash
 gh attestation download curl-amd64 \
   --repo colinmcintosh/static-tools \
   --predicate-type https://spdx.dev/Document/v2.3
 ```
+
+`SHA256SUMS.txt` and SBOM attestations start with `v2026.09.7`.
 
 ### One-liner
 
@@ -286,7 +262,7 @@ make clean    # Remove build artifacts
 
 ```
 static-tools/
-├── Makefile                    # Root build entry point (`TOOLS` list)
+├── Makefile                    # Root build entry point
 ├── builder/                    # Digest-pinned builder image (Dockerfile, apk-lock.txt)
 ├── docs/SLSA.md                # Build L3 claim and verification
 ├── deps/                       # Shared static library prefix
@@ -294,6 +270,8 @@ static-tools/
 │   ├── Makefile
 │   └── versions.mk
 ├── tools/
+│   ├── common.mk               # Build rules shared by every tool Makefile
+│   ├── files.mk                # Files each tool ships (the one list)
 │   └── <name>/                 # One directory per tool; `curl/` is the reference
 │       ├── Dockerfile
 │       ├── Makefile
@@ -346,20 +324,21 @@ To add a new tool (e.g., `dig`):
    - Assert linkage with `readelf` (no `INTERP`, `Type: DYN`), not `file`
    - If the tool needs a new library, add it to `deps/` first
 
-4. Create `tools/dig/Makefile` with build targets. Pass the pin through:
-   `--build-arg DIG_SOURCE_URL=$(DIG_SOURCE_URL)` alongside VERSION and SHA256.
+4. Create `tools/dig/Makefile` following `tools/curl/Makefile`. It includes
+   `versions.mk` and sets `TOOL := dig` and `BUILD_ARGS`, which passes each
+   pin through, for example `--build-arg DIG_SOURCE_URL=$(DIG_SOURCE_URL)`
+   alongside VERSION and SHA256. It sets `DEPS_LIBS` (the prefix libraries
+   it links) and `INPUTS` (patches or scripts the Dockerfile copies) if it
+   has any. It then includes `../common.mk`, which holds the build rules,
+   and defines `test`.
 
-5. Add `dig` to the `TOOLS` list in the root `Makefile`
-
-6. Add `dig` to the release build matrix in `.github/workflows/attest.yml`
-   (CI finds tools from `tools/`). The release checks the built binaries
-   against `make print-artifacts` and derives the `attest-sbom` matrix from
-   `SHA256SUMS.txt`, so there are no counts to bump. A tool that ships more
-   than one file (like `mtr-packet` or `magic.mgc`) must list them in the
-   *Check and stage release files* step in `attest.yml` and in `ARTIFACTS`
-   in the root `Makefile`; if they share a tool tarball but not its
-   libraries, they also need `SBOM_LIBS_<name> :=` in that tool's
-   `versions.mk`.
+5. There is no tool list to update: the root `Makefile`, CI, and the
+   release all treat every `tools/<name>/` directory as a tool. A tool that
+   ships anything besides one binary named after its directory (like
+   `mtr-packet` or `magic.mgc`) lists its files in `FILES_<name>` in
+   `tools/files.mk`, and non-executables also go in `DATA_FILES`. If those
+   files share a tool tarball but not its libraries, they also need
+   `SBOM_LIBS_<name> :=` in that tool's `versions.mk`.
 
 ## Supply Chain Security
 

@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG SYSSTAT_VERSION
 ARG SYSSTAT_SOURCE_URL
 ARG SYSSTAT_SOURCE_SHA256
-ARG TARGETARCH
 
 # Pure libc + /proc parsing: nothing from the shared deps prefix is needed.
 ENV CFLAGS="-Os -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fno-tree-slp-vectorize" \
@@ -57,14 +56,9 @@ RUN set -eu && \
         CFLAGS="${CFLAGS}" \
         LDFLAGS="${LDFLAGS}" && \
     make -j"$(nproc)" CFLAGS="${CFLAGS}" mpstat iostat pidstat sar sadc && \
-    for bin in mpstat iostat pidstat sar sadc; do \
-        ! readelf -l "${bin}" | grep -q INTERP; \
-        readelf -h "${bin}" | grep -q 'Type:[[:space:]]*DYN'; \
-    done && \
     mkdir -p /out && \
     cp mpstat iostat pidstat sar sadc /out/ && \
-    strip /out/mpstat /out/iostat /out/pidstat /out/sar /out/sadc && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/mpstat /out/iostat /out/pidstat /out/sar /out/sadc
 
 FROM scratch AS export
 COPY --from=builder /out/ /

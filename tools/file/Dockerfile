@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG FILE_VERSION
 ARG FILE_SOURCE_URL
 ARG FILE_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -39,10 +38,7 @@ RUN tar xzf file.tar.gz && \
     mkdir -p /out && \
     gcc -static-pie -o /out/file src/file.o src/seccomp.o src/landlock.o src/.libs/libmagic.a -L${PREFIX}/lib -lz -lm && \
     cp magic/magic.mgc /out/magic.mgc && \
-    strip /out/file && \
-    ! readelf -l /out/file | grep -q INTERP && \
-    readelf -h /out/file | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/file
 
 FROM scratch AS export
 COPY --from=builder /out/ /

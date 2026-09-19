@@ -1,57 +1,16 @@
-# ncat build targets
-
-SHELL := /bin/bash
-.SHELLFLAGS := -euo pipefail -c
+# Build settings and tests for ncat. The build rules are in ../common.mk.
 
 include versions.mk
 
-ARCH ?= amd64
-ARCHS := amd64 arm64
+TOOL := ncat
+DEPS_LIBS := libssl.a
+BUILD_ARGS := \
+	--build-arg NMAP_VERSION=$(NMAP_VERSION) \
+	--build-arg NMAP_SOURCE_URL=$(NMAP_SOURCE_URL) \
+	--build-arg NMAP_SOURCE_SHA256=$(NMAP_SOURCE_SHA256)
 
-DOCKER ?= docker
-BUILDX ?= $(DOCKER) buildx
+include ../common.mk
 
-OUT_DIR ?= $(CURDIR)/../../dist
-TOOL_OUT_DIR := $(OUT_DIR)/ncat
-DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
-
-PLATFORM_amd64 := linux/amd64
-PLATFORM_arm64 := linux/arm64
-
-ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
-ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
-
-.PHONY: deps
-deps:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-.PHONY: build
-build: $(TOOL_OUT_DIR)/$(ARCH)/ncat
-
-$(TOOL_OUT_DIR)/$(ARCH)/ncat: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
-	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
-	$(BUILDX) build \
-		--platform $(PLATFORM_$(ARCH)) \
-		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
-		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
-		--build-arg NMAP_VERSION=$(NMAP_VERSION) \
-		--build-arg NMAP_SOURCE_URL=$(NMAP_SOURCE_URL) \
-		--build-arg NMAP_SOURCE_SHA256=$(NMAP_SOURCE_SHA256) \
-		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
-		--target export \
-		.
-	@echo "Built ncat $(NMAP_VERSION) for $(ARCH):"
-	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
-
-$(DEPS_PREFIX)/lib/libssl.a:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-.PHONY: build-all
-build-all:
-	$(foreach arch,$(ARCHS),$(MAKE) build ARCH=$(arch);)
-
-.PHONY: test
 test: build
 	@echo "==> Testing ncat binary for $(ARCH)"
 	@test -x $(TOOL_OUT_DIR)/$(ARCH)/ncat || \
@@ -60,13 +19,13 @@ test: build
 	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/ncat
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/ncat:/ncat:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /ncat --version 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /ncat --version 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "ncat" || \
 		(echo "ERROR: ncat --version failed: $$OUTPUT" && exit 1)
 	@echo "✓ ncat --version works"
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/ncat:/ncat:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /ncat --help 2>&1); \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /ncat --help 2>&1); \
 		echo "$$OUTPUT" | grep -qi "usage\|ncat" || \
 		(echo "ERROR: ncat --help failed: $$OUTPUT" && exit 1); \
 		echo "$$OUTPUT" | grep -q -- "--ssl" || \
@@ -74,7 +33,7 @@ test: build
 	@echo "✓ ncat --help reports OpenSSL"
 	@$(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/ncat:/ncat:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) \
 		/bin/sh -c ' /ncat -l 127.0.0.1 18765 >/tmp/ncat-out & \
 			sleep 1; \
 			printf ping | /ncat --send-only 127.0.0.1 18765; \
@@ -83,19 +42,3 @@ test: build
 		(echo "ERROR: ncat loopback test failed" && exit 1)
 	@echo "✓ ncat loopback connect works"
 	@echo "==> All ncat tests passed"
-
-.PHONY: verify-static
-verify-static: build
-	@echo "==> Checking ncat binary linking for $(ARCH)"
-	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/ncat
-
-.PHONY: clean
-clean:
-	rm -rf $(TOOL_OUT_DIR)
-
-.PHONY: info
-info:
-	@echo "Tool: ncat (nmap netcat)"
-	@echo "Source: nmap $(NMAP_VERSION)"
-	@echo "URL: $(NMAP_SOURCE_URL)"
-	@echo "SHA256: $(NMAP_SOURCE_SHA256)"

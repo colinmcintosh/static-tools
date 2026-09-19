@@ -70,54 +70,29 @@ bit-for-bit reproducible (Build L4-class).
   ([`.github/dependabot.yml`](../.github/dependabot.yml)). Tarball pins in
   `versions.mk` are outside Dependabot; watching those is
   [#46](https://github.com/colinmcintosh/static-tools/issues/46).
-- Releases are published as GitHub Releases. Treat released assets as
-  immutable: verify them, do not re-tag or overwrite.
+- Releases are published as GitHub Releases with immutable releases enabled:
+  once a release is published, GitHub rejects changes to its assets and
+  tag, and a deleted release's tag name cannot be reused. `release.yml`
+  uploads to a draft and publishes it as the last step.
 
 ## Verify
 
-1. Attestation (pin the signer workflow *and* the tag it ran from):
+The [README](../README.md#verify-provenance-recommended) has the commands.
+What each flag pins:
 
-   ```bash
-   gh attestation verify curl-amd64 \
-     --repo colinmcintosh/static-tools \
-     --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
-     --source-ref refs/tags/v2026.09.3 \
-     --deny-self-hosted-runners
-   ```
+- `--cert-identity …/.github/workflows/attest.yml@refs/tags/<tag>` pins the
+  workflow that built and signed the binaries *and* the tag it ran from.
+  `--signer-workflow` is not enough on its own. It matches only
+  `<owner>/<repo>/<path>` and ignores the `@<ref>` part of the certificate
+  identity, so it accepts an attestation minted by `attest.yml` from any
+  ref, and any workflow in the repository can call `attest.yml`.
+- `--source-ref refs/tags/<tag>` additionally pins the ref the source was
+  built from.
+- `--deny-self-hosted-runners` requires a GitHub-hosted runner.
 
-   Or: `./scripts/verify.sh v2026.09.3 curl-amd64 SHA256SUMS.txt` (requires
-   the GitHub CLI). `SHA256SUMS.txt` is attested alongside the binaries.
-   `SHA256SUMS.txt` and SBOM attestations exist only for releases after
-   `v2026.09.6`; use a newer tag for those examples.
-
-   `--signer-workflow` is not sufficient on its own. It matches only
-   `<owner>/<repo>/<path>` and discards the `@<ref>` portion of the certificate
-   identity, so it accepts an attestation minted by `attest.yml` from any ref.
-   `attest.yml` is `workflow_call`, so any workflow in the repository can invoke
-   it. `--cert-identity` pins the ref; `--source-ref` additionally pins the ref
-   the source was built from.
-
-2. Checksums (the sums file is attested; verify it with the same
-   `gh attestation verify` flags as above):
-
-   ```bash
-   sha256sum -c SHA256SUMS.txt
-   ```
-
-3. SBOM (pinned tool tarball and linked prefix libraries). Default
-   `gh attestation verify` checks SLSA provenance; pass `--predicate-type`
-   for the SPDX attestation (or set `VERIFY_PREDICATE_TYPE` for
-   `scripts/verify.sh`):
-
-   ```bash
-   gh attestation verify curl-amd64 \
-     --repo colinmcintosh/static-tools \
-     --cert-identity https://github.com/colinmcintosh/static-tools/.github/workflows/attest.yml@refs/tags/v2026.09.3 \
-     --source-ref refs/tags/v2026.09.3 \
-     --deny-self-hosted-runners \
-     --predicate-type https://spdx.dev/Document/v2.3 \
-     --format json
-   ```
+`SHA256SUMS.txt` is also a provenance subject. Each binary also has an SPDX
+2.3 SBOM attestation (`--predicate-type https://spdx.dev/Document/v2.3`).
+Both start with `v2026.09.7`.
 
 ## Source
 

@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG HTOP_VERSION
 ARG HTOP_SOURCE_URL
 ARG HTOP_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -31,10 +30,7 @@ RUN tar xf htop.tar.xz && \
     make -j"$(nproc)" LDFLAGS="-L${PREFIX}/lib -static-pie" && \
     mkdir -p /out && \
     cp htop /out/htop && \
-    strip /out/htop && \
-    ! readelf -l /out/htop | grep -q INTERP && \
-    readelf -h /out/htop | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/htop
 
 FROM scratch AS export
 COPY --from=builder /out/ /

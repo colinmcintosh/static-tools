@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG NMAP_VERSION
 ARG NMAP_SOURCE_URL
 ARG NMAP_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 # Additional context `deps` is the exported static prefix (see deps/Dockerfile).
@@ -70,11 +69,7 @@ RUN cd nmap-${NMAP_VERSION} && \
     mkdir -p /out && \
     cp nmap /out/nmap && \
     cp nmap-services /out/nmap-services && \
-    strip /out/nmap && \
-    ! readelf -l /out/nmap | grep -q INTERP && \
-    readelf -h /out/nmap | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -Wr /out/nmap | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/nmap
 
 FROM scratch AS export
 COPY --from=builder /out/ /

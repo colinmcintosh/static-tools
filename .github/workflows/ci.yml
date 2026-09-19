@@ -269,20 +269,12 @@ jobs:
     needs: [verify-signatures, verify-upstream, changes, deps, build, lint]
     runs-on: ubuntu-24.04
     steps:
+      # deps and build are skipped when no tool changed, or when a job they
+      # need failed; the failure itself is what this catches.
       - name: Check required jobs succeeded
-        if: >-
-          ${{
-            needs.verify-signatures.result != 'success'
-            || needs.verify-upstream.result != 'success'
-            || needs.changes.result != 'success'
-            || needs.lint.result != 'success'
-            || (needs.changes.outputs.any == 'true' && needs.deps.result != 'success')
-            || (needs.changes.outputs.any == 'true' && needs.build.result != 'success')
-            || needs.deps.result == 'failure'
-            || needs.deps.result == 'cancelled'
-            || needs.build.result == 'failure'
-            || needs.build.result == 'cancelled'
-          }}
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        env:
+          NEEDS: ${{ toJSON(needs) }}
         run: |
-          echo '${{ toJSON(needs) }}'
+          echo "${NEEDS}"
           exit 1

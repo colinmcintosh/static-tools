@@ -1,68 +1,16 @@
-# curl build targets
+# Build settings and tests for curl. The build rules are in ../common.mk.
 
-SHELL := /bin/bash
-.SHELLFLAGS := -euo pipefail -c
-
-# Include version definitions
 include versions.mk
 
-# Architecture (set by parent Makefile or default to host)
-ARCH ?= amd64
-ARCHS := amd64 arm64
+TOOL := curl
+DEPS_LIBS := libssl.a
+BUILD_ARGS := \
+	--build-arg CURL_VERSION=$(CURL_VERSION) \
+	--build-arg CURL_SOURCE_URL=$(CURL_SOURCE_URL) \
+	--build-arg CURL_SOURCE_SHA256=$(CURL_SOURCE_SHA256)
 
-# Docker configuration
-DOCKER ?= docker
-BUILDX ?= $(DOCKER) buildx
+include ../common.mk
 
-# Output directory
-OUT_DIR ?= $(CURDIR)/../../dist
-TOOL_OUT_DIR := $(OUT_DIR)/curl
-DEPS_PREFIX := $(OUT_DIR)/deps/$(ARCH)
-
-# Image name for intermediate builds
-IMAGE_NAME := static-tools-curl-builder
-
-# Platform mapping
-PLATFORM_amd64 := linux/amd64
-PLATFORM_arm64 := linux/arm64
-
-# Get Alpine digest for architecture
-ALPINE_DIGEST_amd64 := $(ALPINE_DIGEST_AMD64)
-ALPINE_DIGEST_arm64 := $(ALPINE_DIGEST_ARM64)
-
-.PHONY: deps
-deps:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-.PHONY: build
-build: $(TOOL_OUT_DIR)/$(ARCH)/curl
-
-$(TOOL_OUT_DIR)/$(ARCH)/curl: Dockerfile versions.mk $(DEPS_PREFIX)/lib/libssl.a
-	@mkdir -p $(TOOL_OUT_DIR)/$(ARCH)
-	$(BUILDX) build \
-		--platform $(PLATFORM_$(ARCH)) \
-		--build-context deps=$(DEPS_PREFIX) \
-		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
-		--build-arg BUILDER_DIGEST=$(BUILDER_DIGEST) \
-		--build-arg CURL_VERSION=$(CURL_VERSION) \
-		--build-arg CURL_SOURCE_URL=$(CURL_SOURCE_URL) \
-		--build-arg CURL_SOURCE_SHA256=$(CURL_SOURCE_SHA256) \
-		--output type=local,dest=$(TOOL_OUT_DIR)/$(ARCH) \
-		--target export \
-		.
-	@echo "Built curl $(CURL_VERSION) for $(ARCH):"
-	@ls -la $(TOOL_OUT_DIR)/$(ARCH)/
-
-$(DEPS_PREFIX)/lib/libssl.a:
-	$(MAKE) -C $(CURDIR)/../../deps build ARCH=$(ARCH) OUT_DIR=$(OUT_DIR)
-
-# Build for all architectures
-.PHONY: build-all
-build-all:
-	$(foreach arch,$(ARCHS),$(MAKE) build ARCH=$(arch);)
-
-# Test the binary
-.PHONY: test
 test: build
 	@echo "==> Testing curl binary for $(ARCH)"
 	@# Check if binary exists and is executable
@@ -74,14 +22,14 @@ test: build
 	@# Run curl --version in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /curl --version 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /curl --version 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "curl" || \
 		(echo "ERROR: curl --version failed: $$OUTPUT" && exit 1)
 	@echo "✓ curl --version works"
 	@# Run curl --help in a container
 	@OUTPUT=$$($(DOCKER) run --rm --platform $(PLATFORM_$(ARCH)) \
 		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) /curl --help 2>&1) && \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) /curl --help 2>&1) && \
 		echo "$$OUTPUT" | grep -qi "usage" || \
 		(echo "ERROR: curl --help failed" && exit 1)
 	@echo "✓ curl --help works"
@@ -90,26 +38,8 @@ test: build
 		-v $(TOOL_OUT_DIR)/$(ARCH)/curl:/curl:ro \
 		-v $(DEPS_PREFIX)/bin/openssl:/openssl:ro \
 		-v $(CURDIR)/../../scripts/test-local-https.sh:/test-local-https.sh:ro \
-		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST_$(ARCH)) \
+		alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) \
 		/bin/sh /test-local-https.sh curl /curl /openssl || \
 		(echo "ERROR: curl HTTPS request failed" && exit 1)
 	@echo "✓ curl HTTPS request works"
 	@echo "==> All curl tests passed"
-
-# Verify static linking
-.PHONY: verify-static
-verify-static: build
-	@echo "==> Checking curl binary linking for $(ARCH)"
-	@$(CURDIR)/../../scripts/assert-static-elf.sh $(TOOL_OUT_DIR)/$(ARCH)/curl
-
-# Clean build artifacts
-.PHONY: clean
-clean:
-	rm -rf $(TOOL_OUT_DIR)
-
-.PHONY: info
-info:
-	@echo "Tool: curl (command line URL transfer tool)"
-	@echo "Source: curl $(CURL_VERSION)"
-	@echo "URL: $(CURL_SOURCE_URL)"
-	@echo "SHA256: $(CURL_SOURCE_SHA256)"

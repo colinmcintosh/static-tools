@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG LDNS_VERSION
 ARG LDNS_SOURCE_URL
 ARG LDNS_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -42,10 +41,7 @@ RUN tar xzf ldns.tar.gz && \
         ../compat/b64_pton.lo ../compat/b64_ntop.lo \
         ../libldns.la -L${PREFIX}/lib -lcrypto -ldl -pthread && \
     mkdir -p /out && \
-    cp .libs/drill /out/drill 2>/dev/null || cp drill /out/drill && \
-    ! readelf -l /out/drill | grep -q INTERP && \
-    readelf -h /out/drill | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    { cp .libs/drill /out/drill 2>/dev/null || cp drill /out/drill; }
 
 FROM scratch AS export
 COPY --from=builder /out/ /

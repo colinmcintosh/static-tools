@@ -12,9 +12,12 @@
 # tool's versions.mk (or SBOM_LIBS_<name> for extra artifacts).
 set -euo pipefail
 
-ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 
-exec python3 - "${ROOT}" "$@" <<'PY'
+# versions_mk.py (the shared versions.mk reader) sits next to this script.
+export PYTHONPATH="${SCRIPT_DIR}"
+exec python3 -B - "${ROOT}" "$@" <<'PY'
 """Emit deterministic SPDX 2.3 JSON from versions.mk pins."""
 from __future__ import annotations
 
@@ -25,25 +28,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-ASSIGN = re.compile(r"^([A-Za-z0-9_.-]+)[ \t]*:=[ \t]*(.*)$")
-EXPAND = re.compile(r"\$\(([^)]+)\)")
-ARTIFACT_RE = re.compile(r"^(.+)-(amd64|arm64)$")
+from versions_mk import expand_all, parse_mk
 
-# Extra release artifacts that do not share a tools/<name>/ directory.
-ARTIFACT_TOOL = {
-    "mtr-packet": "mtr",
-    "magic.mgc": "file",
-    "nmap-services": "nmap",
-    "ip": "iproute2",
-    "ss": "iproute2",
-    "getcap": "libcap",
-    "setcap": "libcap",
-    "mpstat": "sysstat",
-    "iostat": "sysstat",
-    "pidstat": "sysstat",
-    "sar": "sysstat",
-    "sadc": "sysstat",
-}
+ARTIFACT_RE = re.compile(r"^(.+)-(amd64|arm64)$")
 
 # SBOM_LIBS keys -> variable prefix in deps/versions.mk
 LIB_PREFIX = {
@@ -68,53 +55,25 @@ def die(msg: str) -> None:
     raise SystemExit(1)
 
 
-def parse_mk(path: Path) -> dict[str, str]:
-    assignments: dict[str, str] = {}
-    for raw in path.read_text().splitlines():
-        line = raw.split("#", 1)[0].rstrip()
-        if not line or line.startswith("include "):
-            continue
-        match = ASSIGN.match(line)
-        if not match:
-            continue
-        assignments[match.group(1)] = match.group(2)
-    return assignments
-
-
-def expand_value(value: str, env: dict[str, str]) -> str:
-    previous = None
-    while previous != value:
-        previous = value
-        value = EXPAND.sub(lambda m: env.get(m.group(1), m.group(0)), value)
-    return value
-
-
-def expand_all(assignments: dict[str, str], base: dict[str, str] | None = None) -> dict[str, str]:
-    env = dict(base or {})
-    env.update(assignments)
-    # Multi-pass so later keys can reference earlier ones and vice versa.
-    for _ in range(len(env) + 1):
-        changed = False
-        for key, val in list(env.items()):
-            expanded = expand_value(val, env)
-            if expanded != val:
-                env[key] = expanded
-                changed = True
-        if not changed:
-            break
-    return env
-
-
 def load_deps(root: Path) -> dict[str, str]:
     return expand_all(parse_mk(root / "deps" / "versions.mk"))
 
 
-def tool_dir_for(name: str, root: Path) -> Path:
-    tool = ARTIFACT_TOOL.get(name, name)
-    path = root / "tools" / tool
-    if not path.is_dir():
-        die(f"unknown artifact '{name}': no tools/{tool}/")
-    return path
+def shipped_files(root: Path) -> dict[str, str]:
+    """Map each shipped file name to its tools/ directory (tools/files.mk)."""
+    out = subprocess.run(
+        ["make", "-s", "--no-print-directory", "-C", str(root), "print-tool-files"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return {name: tool for tool, name in (line.split() for line in out.splitlines() if line.strip())}
+
+
+def tool_dir_for(name: str, root: Path, files: dict[str, str]) -> Path:
+    if name not in files:
+        die(f"unknown artifact '{name}': tools/files.mk ships no file by that name")
+    return root / "tools" / files[name]
 
 
 def tool_source(tool_raw: dict[str, str], deps: dict[str, str]) -> tuple[str, str, str]:
@@ -190,12 +149,12 @@ def package(
     }
 
 
-def generate_one(artifact: str, root: Path, deps: dict[str, str], tag: str) -> dict:
+def generate_one(artifact: str, root: Path, deps: dict[str, str], files: dict[str, str], tag: str) -> dict:
     match = ARTIFACT_RE.match(artifact)
     if not match:
         die(f"artifact '{artifact}' must look like name-amd64 or name-arm64")
     name = match.group(1)
-    tool_path = tool_dir_for(name, root)
+    tool_path = tool_dir_for(name, root, files)
     tool_raw = parse_mk(tool_path / "versions.mk")
     version, url, sha = tool_source(tool_raw, deps)
     libs = sbom_libs(name, tool_raw)
@@ -260,9 +219,10 @@ def main(argv: list[str]) -> None:
     args = parser.parse_args(argv[1:])
     tag = args.tag or default_tag(root)
     deps = load_deps(root)
+    files = shipped_files(root)
     args.out_dir.mkdir(parents=True, exist_ok=True)
     for artifact in args.artifacts:
-        doc = generate_one(artifact, root, deps, tag)
+        doc = generate_one(artifact, root, deps, files, tag)
         dest = args.out_dir / f"{artifact}.spdx.json"
         dest.write_text(json.dumps(doc, indent=2, sort_keys=False) + "\n")
         print(dest)

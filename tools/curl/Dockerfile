@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG CURL_VERSION
 ARG CURL_SOURCE_URL
 ARG CURL_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 # Additional context `deps` is the exported static prefix (see deps/Dockerfile).
@@ -55,11 +54,7 @@ RUN tar xzf curl.tar.gz && \
     mkdir -p /out && \
     cp src/curl /out/curl && \
     strip /out/curl && \
-    /out/curl --version && \
-    ! readelf -l /out/curl | grep -q INTERP && \
-    readelf -h /out/curl | grep -q 'Type:[[:space:]]*DYN' && \
-    ! readelf -Wr /out/curl | awk '$3 ~ /^R_/ && $3 !~ /RELATIVE$/ { found=1 } END { exit found ? 0 : 1 }' && \
-    cd /out && sha256sum * > SHA256SUMS
+    /out/curl --version
 
 FROM scratch AS export
 COPY --from=builder /out/ /

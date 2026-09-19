@@ -27,7 +27,9 @@ fi
 mkdir -p "${CACHE_DIR}"
 export PYTHONUNBUFFERED=1
 
-exec python3 - "${ROOT}" "${KEYS_DIR}" "${CACHE_DIR}" <<'PY'
+# versions_mk.py (the shared versions.mk reader) sits next to this script.
+export PYTHONPATH="${SCRIPT_DIR}"
+exec python3 -B - "${ROOT}" "${KEYS_DIR}" "${CACHE_DIR}" <<'PY'
 """Download pinned tarballs, gpg --verify with committed keys, check SHA256."""
 from __future__ import annotations
 
@@ -41,8 +43,8 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-ASSIGN = re.compile(r"^([A-Za-z0-9_.-]+)[ \t]*:=[ \t]*(.*)$")
-EXPAND = re.compile(r"\$\(([^)]+)\)")
+from versions_mk import expand_all, parse_mk
+
 
 root = Path(sys.argv[1])
 keys_dir = Path(sys.argv[2])
@@ -52,42 +54,6 @@ cache_dir = Path(sys.argv[3])
 def die(msg: str) -> None:
     print(f"ERROR: {msg}", file=sys.stderr)
     raise SystemExit(1)
-
-
-def parse_mk(path: Path) -> dict[str, str]:
-    assignments: dict[str, str] = {}
-    for raw in path.read_text().splitlines():
-        line = raw.split("#", 1)[0].rstrip()
-        if not line or line.startswith("include "):
-            continue
-        match = ASSIGN.match(line)
-        if not match:
-            continue
-        assignments[match.group(1)] = match.group(2)
-    return assignments
-
-
-def expand_value(value: str, env: dict[str, str]) -> str:
-    previous = None
-    while previous != value:
-        previous = value
-        value = EXPAND.sub(lambda m: env.get(m.group(1), m.group(0)), value)
-    return value
-
-
-def expand_all(assignments: dict[str, str], base: dict[str, str] | None = None) -> dict[str, str]:
-    env = dict(base or {})
-    env.update(assignments)
-    for _ in range(len(env) + 1):
-        changed = False
-        for key, val in list(env.items()):
-            expanded = expand_value(val, env)
-            if expanded != val:
-                env[key] = expanded
-                changed = True
-        if not changed:
-            break
-    return env
 
 
 def fetch(url: str, dest: Path) -> None:

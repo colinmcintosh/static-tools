@@ -8,12 +8,9 @@ ignored:
   - DL3003
   
   # DL4006: Set the SHELL option -o pipefail
-  # Alpine uses busybox ash which handles pipes differently
+  # busybox ash supports pipefail, but no RUN relies on it: every pipe ends
+  # in the command whose status matters (sha256sum -c, grep -q, tar).
   - DL4006
-  
-  # SC2035: Use ./*glob* or -- *glob* so names with dashes won't become options
-  # The sha256sum command is safe with our controlled filenames
-  - SC2035
 
   # DL3022: COPY --from should reference a previously defined FROM alias
   # The `deps` context is an additional build context (--build-context), not a stage

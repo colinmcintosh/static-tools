@@ -6,7 +6,6 @@ FROM ${BUILDER_IMAGE}@${BUILDER_DIGEST} AS builder
 ARG NMAP_VERSION
 ARG NMAP_SOURCE_URL
 ARG NMAP_SOURCE_SHA256
-ARG TARGETARCH
 ARG PREFIX=/opt/st
 
 COPY --from=deps / ${PREFIX}
@@ -39,10 +38,7 @@ RUN tar xjf nmap.tar.bz2 && \
     make -C ncat -j"$(nproc)" && \
     mkdir -p /out && \
     cp ncat/ncat /out/ncat && \
-    strip /out/ncat && \
-    ! readelf -l /out/ncat | grep -q INTERP && \
-    readelf -h /out/ncat | grep -q 'Type:[[:space:]]*DYN' && \
-    cd /out && sha256sum * > SHA256SUMS
+    strip /out/ncat
 
 FROM scratch AS export
 COPY --from=builder /out/ /
