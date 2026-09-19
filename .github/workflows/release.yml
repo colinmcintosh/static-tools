@@ -1,5 +1,6 @@
 # Release workflow for static-tools
-# Verifies the release tag, builds and signs in attest.yml, then publishes.
+# Verifies the release tag, builds and signs in attest.yml, verifies the
+# assets, then publishes.
 
 name: Release
 
@@ -40,6 +41,7 @@ jobs:
           # Full history so the tag commit can be checked against main and its
           # signature verified.
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Verify the run is for a release tag
         id: verify
@@ -104,17 +106,19 @@ jobs:
     uses: ./.github/workflows/attest.yml
     permissions:
       contents: read
-      actions: read
       id-token: write
       attestations: write
 
+  # Published releases are immutable, so every check runs before publishing:
+  # the assets are verified against their attestations, uploaded to a draft,
+  # and the draft's asset digests are compared with the verified files.
   release:
     name: Create GitHub Release
     needs: [verify-tag, attest]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
-      actions: read
+      attestations: read
 
     steps:
       - name: Checkout repository
@@ -147,85 +151,91 @@ jobs:
           fi
           ls -la
 
-      - name: Create Draft GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-        with:
-          tag_name: ${{ needs.verify-tag.outputs.tag }}
-          name: Release ${{ needs.verify-tag.outputs.tag }}
-          draft: true
-          prerelease: false
-          generate_release_notes: true
-          files: |
-            release/*
-          body: |
-            ## Static Binaries
-
-            Statically linked binaries for `amd64` (x86_64) and `arm64` (aarch64),
-            named `<tool>-<arch>` (for example `curl-amd64`).
-
-            ### Verification
-
-            Verify build provenance with the [GitHub CLI](https://cli.github.com/):
-
-            ```bash
-            gh attestation verify curl-amd64 \
-              --repo ${{ github.repository }} \
-              --cert-identity https://github.com/${{ github.repository }}/.github/workflows/attest.yml@refs/tags/${{ needs.verify-tag.outputs.tag }} \
-              --source-ref refs/tags/${{ needs.verify-tag.outputs.tag }} \
-              --deny-self-hosted-runners
-            ```
-
-            The same command verifies `SHA256SUMS.txt`. Add
-            `--predicate-type https://spdx.dev/Document/v2.3` to verify a
-            binary's SBOM. `scripts/verify.sh` runs these checks and also
-            requires the release commit to be on `main`. The
-            [README](https://github.com/${{ github.repository }}#verify-provenance-recommended)
-            covers checksums, SBOMs, and the wrapper.
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-        with:
-          tag_name: ${{ needs.verify-tag.outputs.tag }}
-          draft: false
-
-  verify-published:
-    name: Verify published assets
-    needs: [verify-tag, release]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      attestations: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-
-      - name: Download published release assets
-        env:
-          TAG: ${{ needs.verify-tag.outputs.tag }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p published
-          gh release download "${TAG}" --dir published
-          echo "Published assets:"
-          ls -la published
-
-      - name: Verify published checksums and attestations
+      - name: Verify every asset's attestations
+        working-directory: release
         env:
           TAG: ${{ needs.verify-tag.outputs.tag }}
           GH_TOKEN: ${{ github.token }}
           VERIFY_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # Fails unless the published set is exactly `make print-artifacts`.
-          scripts/collect-release-bins.sh published "${RUNNER_TEMP}/published-bins" >/dev/null
-          cd published
-          test -f SHA256SUMS.txt
-          sha256sum -c SHA256SUMS.txt
-          mapfile -t bins < <(find . -maxdepth 1 -type f \( -name '*-amd64' -o -name '*-arm64' \) -printf '%f\n' | sort)
-          ../scripts/verify.sh "${TAG}" "${bins[@]}" SHA256SUMS.txt
+          mapfile -t files < <(find . -maxdepth 1 -type f -printf '%f\n' | sort)
+          mapfile -t bins < <(printf '%s\n' "${files[@]}" | grep -vx SHA256SUMS.txt)
+          ../scripts/verify.sh "${TAG}" "${files[@]}"
           VERIFY_PREDICATE_TYPE=https://spdx.dev/Document/v2.3 ../scripts/verify.sh "${TAG}" "${bins[@]}"
+
+      - name: Upload assets to a draft release
+        env:
+          TAG: ${{ needs.verify-tag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Quoted heredoc, so the shell expands nothing in it; the two
+          # placeholders are replaced below.
+          notes=$(cat <<'EOF'
+          ## Static Binaries
+
+          Statically linked binaries for `amd64` (x86_64) and `arm64` (aarch64),
+          named `<tool>-<arch>` (for example `curl-amd64`).
+
+          ### Verification
+
+          Verify build provenance with the [GitHub CLI](https://cli.github.com/):
+
+          ```bash
+          gh attestation verify curl-amd64 \
+            --repo @REPO@ \
+            --cert-identity https://github.com/@REPO@/.github/workflows/attest.yml@refs/tags/@TAG@ \
+            --source-ref refs/tags/@TAG@ \
+            --deny-self-hosted-runners
+          ```
+
+          The same command verifies `SHA256SUMS.txt`. Add
+          `--predicate-type https://spdx.dev/Document/v2.3` to verify a
+          binary's SBOM. `scripts/verify.sh` runs these checks and also
+          requires the release commit to be on `main`. The
+          [README](https://github.com/@REPO@#verify-provenance-recommended)
+          covers checksums, SBOMs, and the wrapper.
+          EOF
+          )
+          notes=${notes//@REPO@/"${GH_REPO}"}
+          notes=${notes//@TAG@/"${TAG}"}
+          printf '%s\n' "${notes}" > "${RUNNER_TEMP}/notes.md"
+          # A rerun after a failed publish finds its own draft (verify-tag
+          # stops a rerun once the release is published) and replaces the
+          # assets on it.
+          if [[ "$(gh release view "${TAG}" --json isDraft --jq .isDraft 2>/dev/null)" == "true" ]]; then
+            gh release upload "${TAG}" release/* --clobber
+          else
+            gh release create "${TAG}" release/* \
+              --draft \
+              --verify-tag \
+              --title "Release ${TAG}" \
+              --notes-file "${RUNNER_TEMP}/notes.md" \
+              --generate-notes
+          fi
+
+      - name: Check the draft's assets
+        env:
+          TAG: ${{ needs.verify-tag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # The draft must hold exactly the verified files, byte for byte.
+          if ! diff -u \
+              <(cd release && sha256sum -- * | sed 's/^/sha256:/' | sort) \
+              <(gh release view "${TAG}" --json isDraft,assets \
+                  --jq 'select(.isDraft) | .assets[] | "\(.digest)  \(.name)"' | sort); then
+            echo "::error::The draft release's assets differ from the verified files"
+            exit 1
+          fi
+          echo "✓ The draft holds exactly the verified files"
+
+      - name: Publish the release
+        env:
+          TAG: ${{ needs.verify-tag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "${TAG}" --draft=false

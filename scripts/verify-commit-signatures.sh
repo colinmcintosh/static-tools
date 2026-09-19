@@ -6,7 +6,7 @@
 # Everything else fails, including expired signatures (X), expired keys (Y),
 # revoked keys (R), and any status code a future git release might add.
 #
-# Each accepted signature's fingerprint (%GF) must appear in
+# Each accepted signature's full fingerprint (%GF) must appear exactly in
 # scripts/allowed-signing-keys.txt. Keys are still imported from GitHub so
 # git can verify the cryptographic signature; the allowlist is the trust
 # anchor, not the live keyring.
@@ -69,13 +69,10 @@ load_allowed_fingerprints() {
 fingerprint_allowed() {
     local fp allowed
     fp="$(normalize_fp "$1")"
-    # git %GF is 40 hex chars; accept a 16+ char suffix so a short key ID
-    # still matches a committed full fingerprint, but reject anything shorter.
-    if ((${#fp} < 16)); then
-        return 1
-    fi
+    # For a good signature (G or U), git %GF is the signing key's full
+    # 40-hex fingerprint. Only an exact match counts; a key ID is not enough.
     for allowed in "${allowed_fps[@]}"; do
-        if [[ "${fp}" == "${allowed}" || "${allowed}" == *"${fp}" ]]; then
+        if [[ "${fp}" == "${allowed}" ]]; then
             return 0
         fi
     done

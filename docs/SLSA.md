@@ -76,8 +76,10 @@ bit-for-bit reproducible (Build L4-class).
   [#46](https://github.com/colinmcintosh/static-tools/issues/46).
 - Releases are published as GitHub Releases with immutable releases enabled:
   once a release is published, GitHub rejects changes to its assets and
-  tag, and a deleted release's tag name cannot be reused. `release.yml`
-  uploads to a draft and publishes it as the last step.
+  tag, and a deleted release's tag name cannot be reused. So `release.yml`
+  checks everything before publishing: it runs `scripts/verify.sh` on every
+  asset, uploads them to a draft with the GitHub CLI, checks that the
+  draft's asset digests match the verified files, and publishes last.
 
 ## Verify
 

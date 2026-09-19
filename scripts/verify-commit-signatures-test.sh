@@ -66,14 +66,20 @@ expect_pass "G + allowlisted fingerprint"
 printf 'abc\tU\t968479A1AFF927E37D1A566BB5690EEEBB952194\n' > "${TMP}/log"
 expect_pass "U + allowlisted fingerprint"
 
+printf 'abc\tG\ta4b4fddc55108dd6af1a88e125c4f1ca7ee971e0\n' > "${TMP}/log"
+expect_pass "G + allowlisted fingerprint in lower case"
+
 printf 'abc\tG\t25C4F1CA7EE971E0\n' > "${TMP}/log"
-expect_pass "G + 16-char suffix of an allowlisted fingerprint"
+expect_fail "G + 16-char key ID of an allowlisted fingerprint"
+
+printf 'abc\tG\t0000FDDC55108DD6AF1A88E125C4F1CA7EE971E0\n' > "${TMP}/log"
+expect_fail "G + fingerprint sharing an allowlisted key ID"
 
 printf 'abc\tG\tDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF\n' > "${TMP}/log"
 expect_fail "G + unknown fingerprint"
 
-printf 'abc\tG\tABCD\n' > "${TMP}/log"
-expect_fail "G + fingerprint shorter than 16 hex chars"
+printf 'abc\tG\t\n' > "${TMP}/log"
+expect_fail "G + empty fingerprint"
 
 for status in N B E X Y R Z; do
     printf 'abc\t%s\tA4B4FDDC55108DD6AF1A88E125C4F1CA7EE971E0\n' "${status}" > "${TMP}/log"
