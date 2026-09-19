@@ -102,4 +102,31 @@ test: build
 		echo "$$OUTPUT" | grep -qi "CPU\|%idle\|%user" || \
 		(echo "ERROR: sar 1 1 with sibling sadc failed: $$OUTPUT" && exit 1)
 	@echo "✓ sar 1 1 works (live sampling via sibling sadc)"
+	@for setup in \
+		"refuses|chown 1234 /t/sadc|owned by another user" \
+		"refuses|chown 1234 /t/sar|owned by root while sar is not" \
+		"refuses|chmod u+s /t/sadc|setuid" \
+		"refuses|chmod g+s /t/sadc|setgid" \
+		"refuses|chmod o+w /t/sadc|world-writable" \
+		"refuses|chmod g+w /t/sadc|group-writable while sar is not" \
+		"refuses|chmod g+w /t/sar /t/sadc && chgrp 1234 /t/sadc|writable by a group that cannot write sar" \
+		"refuses|mv /t/sadc /t/real-sadc && ln -s real-sadc /t/sadc|a symlink" \
+		"refuses|rm /t/sadc && mkfifo /t/sadc|a FIFO" \
+		"runs|chmod g+w /t/sar /t/sadc|group-writable like sar (umask 002)"; do \
+		expect=$${setup%%|*}; rest=$${setup#*|}; prep=$${rest%%|*}; label=$${rest#*|}; \
+		rc=0; OUTPUT=$$($(DOCKER) run --rm --init --platform $(PLATFORM_$(ARCH)) \
+			-v $(TOOL_OUT_DIR)/$(ARCH)/sar:/in/sar:ro \
+			-v $(TOOL_OUT_DIR)/$(ARCH)/sadc:/in/sadc:ro \
+			alpine:$(ALPINE_VERSION)@$(ALPINE_DIGEST) \
+			sh -c "mkdir /t && cp /in/sar /in/sadc /t/ && chmod 755 /t/sar /t/sadc && $$prep && timeout 30 /t/sar 1 1" 2>&1) || rc=$$?; \
+		if [ "$$expect" = runs ]; then \
+			[ "$$rc" = 0 ] && echo "$$OUTPUT" | grep -qi "CPU\|%idle\|%user" || \
+				{ echo "ERROR: sar did not run a sibling sadc that is $$label: $$OUTPUT"; exit 1; }; \
+		else \
+			[ "$$rc" != 0 ] || { echo "ERROR: sar ran a sibling sadc that is $$label: $$OUTPUT"; exit 1; }; \
+			echo "$$OUTPUT" | grep -qi "data collector\|sadc" || \
+				{ echo "ERROR: sar with a sibling sadc that is $$label failed for an unexpected reason: $$OUTPUT"; exit 1; }; \
+		fi; \
+		echo "✓ sar $$expect a sibling sadc that is $$label"; \
+	done
 	@echo "==> All sysstat tests passed"

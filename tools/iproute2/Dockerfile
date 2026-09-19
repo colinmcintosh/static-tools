@@ -42,10 +42,12 @@ RUN wget -q "${IPROUTE2_SOURCE_URL}" -O iproute2.tar.gz && \
 # Only the lib, ip, and misc subdirs are built (SUBDIRS=): ip and ss don't
 # need tc/bridge/netem/genl, and man needs xmlto/docbook which the frozen
 # builder image does not have.
+# PREFIX=/usr: iproute2's Makefile would otherwise take PREFIX from the
+# build arg (the deps prefix) and look for config under /opt/st/share.
 RUN tar xzf iproute2.tar.gz && \
     cd iproute2-${IPROUTE2_VERSION} && \
     ./configure /usr/include && \
-    make -j"$(nproc)" SUBDIRS="lib ip misc" SHARED_LIBS=n && \
+    make -j"$(nproc)" SUBDIRS="lib ip misc" SHARED_LIBS=n PREFIX=/usr && \
     mkdir -p /out && \
     cp ip/ip misc/ss /out/ && \
     strip /out/ip /out/ss && \

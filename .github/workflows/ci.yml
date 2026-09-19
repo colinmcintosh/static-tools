@@ -33,6 +33,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Check commit signatures in range
         env:
@@ -64,9 +65,30 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Verify signed upstream tarball pins
         run: scripts/verify-upstream-signatures.sh
+
+  # Every deps and tool build runs in the builder image pinned in
+  # deps/versions.mk. builder.yml on main must have built and attested it.
+  verify-builder:
+    name: Verify builder image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify the builder image and its apk lock
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/verify-builder-image.sh --lock
 
   changes:
     name: Detect changed tools
@@ -79,6 +101,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect tools to build
         id: detect
@@ -115,7 +138,7 @@ jobs:
 
   deps:
     name: Deps ${{ matrix.arch }}
-    needs: [verify-signatures, verify-upstream, changes]
+    needs: [verify-signatures, verify-upstream, verify-builder, changes]
     if: ${{ needs.changes.outputs.any == 'true' }}
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -132,6 +155,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -161,7 +186,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.tool }}-${{ matrix.arch }}
-    needs: [verify-signatures, verify-upstream, changes, deps]
+    needs: [verify-signatures, verify-upstream, verify-builder, changes, deps]
     if: ${{ needs.changes.outputs.any == 'true' }}
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -178,6 +203,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -233,6 +260,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Lint Dockerfiles, scripts, and workflows
         run: make lint
@@ -266,7 +295,7 @@ jobs:
   ci:
     name: CI
     if: ${{ always() && !cancelled() }}
-    needs: [verify-signatures, verify-upstream, changes, deps, build, lint]
+    needs: [verify-signatures, verify-upstream, verify-builder, changes, deps, build, lint]
     runs-on: ubuntu-24.04
     steps:
       # deps and build are skipped when no tool changed, or when a job they

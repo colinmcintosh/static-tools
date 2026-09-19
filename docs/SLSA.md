@@ -12,11 +12,15 @@ bit-for-bit reproducible (Build L4-class).
   `ubuntu-24.04-arm`), inside a digest-pinned builder image
   (`ghcr.io/colinmcintosh/static-tools/builder`). That image is Alpine
   plus the compiler toolchain; it is published and attested by
-  [`.github/workflows/builder.yml`](../.github/workflows/builder.yml).
-  Rebuild it from that workflow, then copy the new index digest into
-  [`deps/versions.mk`](../deps/versions.mk) and refresh
-  [`builder/apk-lock.txt`](../builder/apk-lock.txt). Tool and deps
-  Dockerfiles must not `apk add`.
+  [`.github/workflows/builder.yml`](../.github/workflows/builder.yml),
+  which publishes only from `main`. Rebuild it from that workflow, then
+  copy the new index digest into [`deps/versions.mk`](../deps/versions.mk)
+  and refresh [`builder/apk-lock.txt`](../builder/apk-lock.txt). CI and
+  `release.yml` run
+  [`scripts/verify-builder-image.sh`](../scripts/verify-builder-image.sh)
+  before any build: the pinned digest must carry an attestation from
+  `builder.yml` on `main`, and CI also checks the lock against the image.
+  Tool and deps Dockerfiles must not `apk add`.
 - Upstream tarballs are fetched over HTTPS and verified with SHA256 pins in
   each tool's `versions.mk` (shared libraries live in `deps/versions.mk`).
   Pins that publish a detached signature are also audited on every CI run
@@ -72,8 +76,10 @@ bit-for-bit reproducible (Build L4-class).
   [#46](https://github.com/colinmcintosh/static-tools/issues/46).
 - Releases are published as GitHub Releases with immutable releases enabled:
   once a release is published, GitHub rejects changes to its assets and
-  tag, and a deleted release's tag name cannot be reused. `release.yml`
-  uploads to a draft and publishes it as the last step.
+  tag, and a deleted release's tag name cannot be reused. So `release.yml`
+  checks everything before publishing: it runs `scripts/verify.sh` on every
+  asset, uploads them to a draft with the GitHub CLI, checks that the
+  draft's asset digests match the verified files, and publishes last.
 
 ## Verify
 
@@ -89,6 +95,8 @@ What each flag pins:
 - `--source-ref refs/tags/<tag>` additionally pins the ref the source was
   built from.
 - `--deny-self-hosted-runners` requires a GitHub-hosted runner.
+- `scripts/verify.sh` also reads the source commit from the verified
+  certificate and requires it to be on `main` (see [Source](#source)).
 
 `SHA256SUMS.txt` is also a provenance subject. Each binary also has an SPDX
 2.3 SBOM attestation (`--predicate-type https://spdx.dev/Document/v2.3`).
@@ -100,14 +108,19 @@ Source integrity on `main` is enforced with a GitHub branch ruleset: required
 commit signatures, no force-push, no branch deletion. That is not Source L3
 and is not gittuf.
 
-Tags matching `v*` cannot be moved or deleted once created. Because tag
-*creation* is not restricted, `release.yml` additionally requires that the
-tagged commit is reachable from `origin/main` and carries an acceptable
-signature, so a release cannot be cut from an unreviewed branch. Both workflows
-share one implementation in
+Tags matching `v*` cannot be moved or deleted once created, but tag
+*creation* is not restricted. `release.yml` refuses to build a tag whose
+commit is not reachable from `origin/main` or is not signed by an allowed
+key. CI and the release share one implementation in
 [`scripts/verify-commit-signatures.sh`](../scripts/verify-commit-signatures.sh).
 Allowed fingerprints are listed in
 [`scripts/allowed-signing-keys.txt`](../scripts/allowed-signing-keys.txt).
+
+Those release checks run from the tagged commit's own `release.yml`, so they
+catch mistakes but cannot stop someone who can push a branch and a tag. The
+check that holds is on the verifier's side: `scripts/verify.sh` requires the
+commit the attestations name to be on `main`, so a release built from any
+other branch fails verification.
 
 Known limitations of individual tools are listed in the
 [README Known Issues](../README.md#known-issues) section.

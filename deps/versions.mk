@@ -3,11 +3,13 @@
 # digest-pinned builder image (builder/Dockerfile). C libraries are
 # NOT installed via apk; they are fetched by URL and verified with SHA256.
 #
-# Rebuild the builder with .github/workflows/builder.yml, then copy the
-# printed BUILDER_DIGEST here and refresh builder/apk-lock.txt.
+# Rebuild the builder with .github/workflows/builder.yml, which publishes
+# only from main, then copy the printed BUILDER_DIGEST here and refresh
+# builder/apk-lock.txt. CI and the release reject a digest that builder.yml
+# did not attest on main (scripts/verify-builder-image.sh).
 
 BUILDER_IMAGE := ghcr.io/colinmcintosh/static-tools/builder
-BUILDER_DIGEST := sha256:cb116aa9e4e5ff06ee5fb358054d1c14d58856bde99612d297ac05971a802740
+BUILDER_DIGEST := sha256:cde78550eb94cecdd7b29c325e2ac0a70d26531a5124173166c117d4593e6f2c
 
 ALPINE_VERSION := 3.24
 # Multi-arch index digest of alpine:3.24 (currently 3.24.1). Docker

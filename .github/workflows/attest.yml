@@ -228,7 +228,6 @@ jobs:
     needs: [manifests]
     runs-on: ubuntu-24.04
     permissions:
-      actions: read
       id-token: write
       attestations: write
     steps:
@@ -248,7 +247,6 @@ jobs:
     needs: [manifests, attest]
     runs-on: ubuntu-24.04
     permissions:
-      actions: read
       id-token: write
       attestations: write
     strategy:

@@ -1,8 +1,10 @@
 # Publish a multi-arch builder image and attest it. This is the only
 # publisher; deps/ and tool builds pull the digest, they do not build it.
-# workflow_dispatch is the rebuild button. Push to main of these paths
-# publishes the first snapshot once this workflow itself lands on main
-# (GitHub will not dispatch a workflow that exists only on a branch).
+# workflow_dispatch is the rebuild button. Both triggers publish only from
+# main: on any other ref the jobs are skipped, so a branch cannot push the
+# shared tags or attest an image. CI and the release accept only a
+# BUILDER_DIGEST that this workflow attested on main
+# (scripts/verify-builder-image.sh).
 name: Builder
 
 on:
@@ -30,6 +32,7 @@ env:
 jobs:
   build:
     name: Build ${{ matrix.arch }}
+    if: github.ref == 'refs/heads/main'
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -45,6 +48,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -163,23 +168,6 @@ jobs:
             "/users/${{ github.repository_owner }}/packages/container/static-tools%2Fbuilder" \
             -f visibility=public
 
-      - name: Export apk lock
-        env:
-          DIGEST: ${{ steps.manifest.outputs.digest }}
-        run: |
-          set -euo pipefail
-          docker run --rm --platform linux/amd64 "${IMAGE}@${DIGEST}" \
-            cat /etc/static-tools-builder-packages.txt > "${RUNNER_TEMP}/apk-lock.txt"
-          wc -l "${RUNNER_TEMP}/apk-lock.txt"
-
-      - name: Upload apk lock
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: apk-lock
-          path: ${{ runner.temp }}/apk-lock.txt
-          if-no-files-found: error
-          retention-days: 7
-
       - name: Attest builder image
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
@@ -202,6 +190,12 @@ jobs:
             echo '```'
             echo "BUILDER_IMAGE := ${IMAGE}"
             echo "BUILDER_DIGEST := ${DIGEST}"
+            echo '```'
+            echo ""
+            echo "Refresh \`builder/apk-lock.txt\`, which CI checks against the image:"
+            echo ""
+            echo '```'
+            echo "docker run --rm --platform linux/amd64 ${IMAGE}@${DIGEST} cat /etc/static-tools-builder-packages.txt > builder/apk-lock.txt"
             echo '```'
             echo ""
             echo "Tags: \`${IMAGE}:sha-${SHORT_SHA}\`, \`${IMAGE}:${DATE_TAG}\`"

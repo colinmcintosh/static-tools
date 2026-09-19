@@ -107,6 +107,8 @@ RUN wget -q "${NGHTTP2_URL}" -O nghttp2.tar.gz && \
 ARG NCURSES_VERSION
 ARG NCURSES_URL
 ARG NCURSES_SHA256
+# Search the target system's terminfo directories, not the build-only
+# ${PREFIX}/share/terminfo, which does not exist where the tools run.
 RUN wget -q "${NCURSES_URL}" -O ncurses.tar.gz && \
     echo "${NCURSES_SHA256}  ncurses.tar.gz" | sha256sum -c - && \
     tar xzf ncurses.tar.gz && \
@@ -121,6 +123,8 @@ RUN wget -q "${NCURSES_URL}" -O ncurses.tar.gz && \
         --without-cxx-binding \
         --enable-widec \
         --with-pkg-config-libdir="${PREFIX}/lib/pkgconfig" \
+        --with-default-terminfo-dir=/usr/share/terminfo \
+        --with-terminfo-dirs=/etc/terminfo:/lib/terminfo:/usr/share/terminfo:/usr/lib/terminfo \
         --enable-pc-files && \
     make -j"$(nproc)" && \
     make install && \
