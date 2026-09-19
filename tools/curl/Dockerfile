@@ -30,8 +30,9 @@ RUN tar xzf curl.tar.gz && \
         --with-openssl="${PREFIX}" \
         --with-nghttp2="${PREFIX}" \
         --with-zlib="${PREFIX}" \
-        --with-ca-path=/etc/ssl/certs \
-        --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
+        --without-ca-bundle \
+        --without-ca-path \
+        --with-ca-fallback \
         --without-brotli \
         --without-libidn2 \
         --without-libpsl \

@@ -426,13 +426,17 @@ iftop has had no tagged release from an actively maintained fork in over a decad
 
 Built without libidn2: the builder image has no `pkg-config`, and `whois` does not link the shared deps prefix, so upstream's `pkg-config`-based autodetection silently leaves IDN support off. ASCII domain queries work normally; punycode/non-ASCII domain names are not converted.
 
-### `less` does not bundle a terminfo database
+### Terminal tools use the system's terminfo database
 
-`less` is statically linked against the ncurses/terminfo build already in the shared deps prefix, but no terminfo database is bundled in the binary. It works best on a target system that already has one (e.g. `/usr/share/terminfo`) or sets `$TERMINFO`/`$TERMINFO_DIRS`; otherwise ncurses falls back to built-in generic capabilities for common `$TERM` values.
+`htop`, `less`, `mtr`, `ncdu`, and `nethogs` link ncurses statically but do not bundle a terminfo database. They look up `$TERM` in `$TERMINFO`, `~/.terminfo`, `$TERMINFO_DIRS`, then `/etc/terminfo`, `/lib/terminfo`, `/usr/share/terminfo`, and `/usr/lib/terminfo`. Most distributions ship a database in one of those. On a host without one, install it (for example `ncurses-terminfo-base` on Alpine) or point `$TERMINFO` at a copy.
+
+### TLS tools use the system's CA certificates
+
+`curl`, `wget`, `openssl`, and the other OpenSSL-linked tools trust the CA certificates in `/etc/ssl/cert.pem` and `/etc/ssl/certs`, where Alpine, Debian, and Fedora/RHEL-family systems keep them. Set `SSL_CERT_FILE` or `SSL_CERT_DIR` to use a different store.
 
 ### `sar` live sampling needs the shipped `sadc` next to it
 
-`sar <interval> <count>` execs a separate `sadc` binary. This build looks for `sadc` next to the `sar` executable (`dirname(/proc/self/exe)/sadc`), then the compile-time `SADC_PATH`, then `PATH`. The download one-liners rename `sar-<arch>` and `sadc-<arch>` into the same directory, so `./sar 1 5` works. Historical mode (`sar` with no interval, or `sar -f <datafile>`) still needs a data file produced by a long-running collector; this release does not ship cron/systemd collection. `mpstat`, `iostat`, and `pidstat` are unaffected, since they always sample `/proc` directly.
+`sar <interval> <count>` execs a separate `sadc` binary. This build looks for `sadc` next to the `sar` executable (`dirname(/proc/self/exe)/sadc`), then the compile-time `SADC_PATH`, then `PATH`. It uses the `sadc` next to `sar` only if that file is owned by root or by `sar`'s owner, is not world-writable, and is group-writable only when `sar` is writable by the same group, so a `sadc` that someone else dropped into the same directory is not run. The download one-liners rename `sar-<arch>` and `sadc-<arch>` into the same directory, so `./sar 1 5` works. Historical mode (`sar` with no interval, or `sar -f <datafile>`) still needs a data file produced by a long-running collector; this release does not ship cron/systemd collection. `mpstat`, `iostat`, and `pidstat` are unaffected, since they always sample `/proc` directly.
 
 ### `nmap` ships without NSE, Nping, Ndiff, or Zenmap
 
