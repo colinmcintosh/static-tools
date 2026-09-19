@@ -203,9 +203,15 @@ jobs:
           notes=${notes//@TAG@/"${TAG}"}
           printf '%s\n' "${notes}" > "${RUNNER_TEMP}/notes.md"
           # A rerun after a failed publish finds its own draft (verify-tag
-          # stops a rerun once the release is published) and replaces the
-          # assets on it.
+          # stops a rerun once the release is published). Remove any asset
+          # this run does not upload, then replace the rest.
           if [[ "$(gh release view "${TAG}" --json isDraft --jq .isDraft 2>/dev/null)" == "true" ]]; then
+            gh release view "${TAG}" --json assets --jq '.assets[].name' |
+              while IFS= read -r name; do
+                if [[ ! -f "release/${name}" ]]; then
+                  gh release delete-asset "${TAG}" "${name}" --yes
+                fi
+              done
             gh release upload "${TAG}" release/* --clobber
           else
             gh release create "${TAG}" release/* \
@@ -223,11 +229,21 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          # The API allows a null asset digest, so give GitHub a minute to
+          # record every digest before comparing.
+          for attempt in 1 2 3 4 5 6; do
+            draft=$(gh release view "${TAG}" --json isDraft,assets \
+              --jq 'select(.isDraft) | .assets[] | "\(.digest)  \(.name)"' | sort)
+            if ! grep -q '^null ' <<< "${draft}"; then
+              break
+            fi
+            echo "Waiting for asset digests (attempt ${attempt})"
+            sleep 10
+          done
           # The draft must hold exactly the verified files, byte for byte.
           if ! diff -u \
               <(cd release && sha256sum -- * | sed 's/^/sha256:/' | sort) \
-              <(gh release view "${TAG}" --json isDraft,assets \
-                  --jq 'select(.isDraft) | .assets[] | "\(.digest)  \(.name)"' | sort); then
+              <(printf '%s\n' "${draft}"); then
             echo "::error::The draft release's assets differ from the verified files"
             exit 1
           fi
