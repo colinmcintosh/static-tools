@@ -42,6 +42,7 @@ The provenance is intended to prove the supply chain between upstream source (th
 | sysstat | 12.8.0 | Live CPU/disk/process statistics (ships `mpstat`, `iostat`, `pidstat`, `sar`, and `sadc`; no `sysstat` binary) |
 | tree | 2.3.2 | Recursive directory listing as a tree |
 | libcap | 2.78 | Inspect and set Linux file capabilities (ships `getcap` and `setcap`; no `libcap` binary) |
+| ipmitool | 1.8.19 | IPMI management for LAN, LAN+, OpenIPMI, serial, and USB (shell disabled; no readline in the prefix) |
 
 Each tool lives in `tools/<name>/` with its version pinned in `versions.mk`. Release artifacts are named `<tool>-<arch>` (for example `curl-amd64`). Some tool directories ship multiple binaries, none of which need match the directory name: `mtr` also ships `mtr-packet-<arch>`; `file` also ships `magic.mgc-<arch>`; `nmap` also ships `nmap-services-<arch>`; `iproute2` ships `ip-<arch>` and `ss-<arch>`; `libcap` ships `getcap-<arch>` and `setcap-<arch>`; `sysstat` ships `mpstat-<arch>`, `iostat-<arch>`, `pidstat-<arch>`, `sar-<arch>`, and `sadc-<arch>`.
 
@@ -441,6 +442,10 @@ Built without libidn2: the builder image has no `pkg-config`, and `whois` does n
 ### `nmap` ships without NSE, Nping, Ndiff, or Zenmap
 
 Built with `--without-liblua --without-nping --without-ndiff --without-zenmap --without-ncat` to avoid pulling in new dependencies for this static build (`ncat` is already its own tool in this repo, built from the same nmap source tarball). The scripting engine (`--script`) is unavailable because Lua/NSE is disabled. Version detection (`-sV`) and OS detection (`-O`) do not use Lua; they are unavailable here because this build does not ship `nmap-service-probes` or `nmap-os-db`. Ordinary port scans and service-name lookups via the shipped `nmap-services` are unaffected. One upstream source oversight (a `close_nse()` call in `nmap.cc` missing the `#ifndef NOLUA` guard used at every other NSE call site in the same file) is patched at build time; see the comment in `tools/nmap/Dockerfile`.
+
+### `ipmitool` has no interactive shell
+
+`ipmitool shell` needs readline. The shared prefix does not build readline (`socat` disables it for the same reason), so this build passes `--disable-ipmishell`. LAN, LAN+, OpenIPMI, serial, and USB interfaces are included.
 
 ## License
 
